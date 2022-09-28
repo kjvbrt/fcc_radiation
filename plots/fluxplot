@@ -11,19 +11,24 @@ ROOT.gROOT.SetBatch(True)
 
 
 class Detector:
-    def __init__(self):
+    def __init__(self, sample):
         cld_solenoid_outer_radius = 4272  # mm
         cld_ref_radius = 6000  # mm
         # world_side = 6100  # mm
         world_side = 33000  # mm
 
-        self.radius = cld_solenoid_outer_radius + 5  # mm
+        if sample['x6m']:
+            self.radius = cld_solenoid_outer_radius + 5  # mm
+        else:
+            self.radius = cld_ref_radius + 5  # mm
         self.z = world_side - 5  # mm
 
         self.r = self.radius
         self.n = 200
         self.n_r = self.n
         self.n_z = int(self.n * 1.5)
+        if not sample['x6m']:
+            self.n_z = int(self.n_z / 2)
         self.n_phi = int(self.n / 2)
         self.dr = self.r / self.n_r
         self.dz = 2 * self.z / self.n_z
@@ -31,7 +36,10 @@ class Detector:
         self.ds = self.r * self.dphi
         self.seg_area = self.ds * self.dz / 100  # cm**2
         self.endcap_seg_area = self.dr * self.dr / 100  # cm**2
-        self.x6m = (cld_solenoid_outer_radius / cld_ref_radius)**2
+        if sample['x6m']:
+            self.x6m = (cld_solenoid_outer_radius / cld_ref_radius)**2
+        else:
+            self.x6m = 1.
 
         print('Fluxmeter:')
         print('  - radius:          ', self.r, 'mm')
@@ -93,7 +101,7 @@ class Samples:
                 'title': 'e^{+}e^{-} #rightarrow #gamma #gamma #rightarrow f #bar{f}',
                 'normalization': 0.125,
                 'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_ggall_1_24.root',
-                'outdir': 'cld_no_yoke_no_ecal_xangle_ggall'
+                'outdir': 'cld_no_yoke_no_ecal_xangle_ggall',
                 'x6m': True
             })
         elif sid == 2:
@@ -102,7 +110,7 @@ class Samples:
                 'title': 'e^{+}e^{-} #rightarrow #tau^{+} #tau^{-}',
                 'normalization': 0.125,
                 'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_tautau_1_24.root',
-                'outdir': 'cld_no_yoke_no_ecal_xangle_tautau'
+                'outdir': 'cld_no_yoke_no_ecal_xangle_tautau',
                 'x6m': True
             })
         elif sid == 3:
@@ -111,7 +119,7 @@ class Samples:
                 'title': 'e^{+}e^{-} #rightarrow q #bar{q}',
                 'normalization': 0.5,
                 'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_qqbar_1_120.root',
-                'outdir': 'cld_no_yoke_no_ecal_xangle_qqbar'
+                'outdir': 'cld_no_yoke_no_ecal_xangle_qqbar',
                 'x6m': True
             })
         elif sid == 4:
@@ -120,16 +128,16 @@ class Samples:
                 'title': 'e^{+}e^{-} #rightarrow q #bar{q}',
                 'normalization': 0.5,
                 'infile': '../output/output_fluxmeter_cld_no_yoke_qqbar_1_120.root',
-                'outdir': 'cld_no_yoke_qqbar'
+                'outdir': 'cld_no_yoke_qqbar',
                 'x6m': True
             })
         elif sid == 5:
             self.list.append({
                 'name': 'qqbar',
                 'title': 'e^{+}e^{-} #rightarrow q #bar{q}',
-                'normalization': 5.,
-                'infile': '../output/output_fluxmeter_cld_xangle_qqbar_1_12.root',
-                'outdir': 'cld_xangle_qqbar'
+                'normalization': 2.5,
+                'infile': '../output/output_fluxmeter_cld_xangle_qqbar_1_24.root',
+                'outdir': 'cld_xangle_qqbar',
                 'x6m': False
             })
         else:
@@ -769,9 +777,6 @@ def process_sample(det, ids, sample, args):
     infile.Close()
 
     # Normalization
-    x6m = 1.
-    if sample['x6m']:
-        x6m = det.x6m
     for hist in hist_arr_energy.values():
         hist.Scale(sample['normalization'])
 
@@ -779,22 +784,22 @@ def process_sample(det, ids, sample, args):
         hist.Scale(sample['normalization'])
 
     for hist in hist_arr_fluence_z_phi.values():
-        hist.Scale(sample['normalization'] * x6m/det.seg_area)
+        hist.Scale(sample['normalization'] * det.x6m/det.seg_area)
 
     for hist in hist_arr_fluence_x_y.values():
         hist.Scale(sample['normalization']/det.endcap_seg_area)
 
     for hist in hist_arr_energy_fluence_z_phi.values():
-        hist.Scale(sample['normalization'] * x6m/det.seg_area)
+        hist.Scale(sample['normalization'] * det.x6m/det.seg_area)
 
     for hist in hist_arr_energy_fluence_x_y.values():
         hist.Scale(sample['normalization']/det.endcap_seg_area)
 
     for hist in hist_arr_dose_z_phi.values():
-        hist.Scale(sample['normalization'] * x6m/det.seg_area)
+        hist.Scale(sample['normalization'] * det.x6m/det.seg_area)
 
     for hist in hist_arr_edose_z_phi.values():
-        hist.Scale(sample['normalization'] * x6m/det.seg_area)
+        hist.Scale(sample['normalization'] * det.x6m/det.seg_area)
 
     # Drawing
     ROOT.gStyle.SetOptStat(111111)
@@ -1034,7 +1039,6 @@ def process_sample(det, ids, sample, args):
 
 
 def main():
-    det = Detector()
     ids = IDs(True)
 
     parser = argparse.ArgumentParser(description='Yay, let\'s plot flux!')
@@ -1053,6 +1057,7 @@ def main():
 
     samples = Samples(args.sid)
     for sample in samples.list:
+        det = Detector(sample)
         process_sample(det, ids, sample, args)
 
 
