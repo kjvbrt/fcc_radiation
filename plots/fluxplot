@@ -23,7 +23,7 @@ class Detector:
         self.r = self.radius
         self.n = 200
         self.n_r = self.n
-        self.n_z = self.n * 2
+        self.n_z = int(self.n * 1.5)
         self.n_phi = int(self.n / 2)
         self.dr = self.r / self.n_r
         self.dz = 2 * self.z / self.n_z
@@ -31,7 +31,7 @@ class Detector:
         self.ds = self.r * self.dphi
         self.seg_area = self.ds * self.dz / 100  # cm**2
         self.endcap_seg_area = self.dr * self.dr / 100  # cm**2
-        self.xdose = (cld_solenoid_outer_radius / cld_ref_radius)**2
+        self.x6m = (cld_solenoid_outer_radius / cld_ref_radius)**2
 
         print('Fluxmeter:')
         print('  - radius:          ', self.r, 'mm')
@@ -46,7 +46,7 @@ class Detector:
         print('  - ds:              ', self.ds, 'mm')
         print('  - seg. area:       ', self.seg_area, 'cm**2')
         print('  - endcap seg. area:', self.endcap_seg_area, 'cm**2')
-        print('  - rescaling dose to 6 m:', self.xdose)
+        print('  - rescaling to 6 m:', self.x6m)
 
 
 class IDs:
@@ -335,7 +335,7 @@ def process_sample(det, ids, sample, args):
         hist.SetDirectory(0)
         hist_arr_total_energy[seltype] = hist
 
-    # PDG IDs not catches particles
+    # PDG IDs of not catched particles
     hist_pdg_other = ROOT.TH1D(
         'pdgid_other_' + sample['name'],
         sample['title'] + ' | Other particles PDG ID;PDG ID;N',
@@ -459,7 +459,7 @@ def process_sample(det, ids, sample, args):
             if y < 0:
                 phi *= -1
             wf = weight_factor(pdgid, energy)
-            xdose = energy * wf * dconv
+            xdose = energy * dconv
             xedose = wf * xdose
 
             hist_hits_z_r.Fill(z, r)
@@ -770,22 +770,22 @@ def process_sample(det, ids, sample, args):
         hist.Scale(sample['normalization'])
 
     for hist in hist_arr_fluence_z_phi.values():
-        hist.Scale(sample['normalization']/det.seg_area)
+        hist.Scale(sample['normalization'] * det.x6m/det.seg_area)
 
     for hist in hist_arr_fluence_x_y.values():
         hist.Scale(sample['normalization']/det.endcap_seg_area)
 
     for hist in hist_arr_energy_fluence_z_phi.values():
-        hist.Scale(sample['normalization']/det.seg_area)
+        hist.Scale(sample['normalization'] * det.x6m/det.seg_area)
 
     for hist in hist_arr_energy_fluence_x_y.values():
         hist.Scale(sample['normalization']/det.endcap_seg_area)
 
     for hist in hist_arr_dose_z_phi.values():
-        hist.Scale(sample['normalization']/det.seg_area)
+        hist.Scale(sample['normalization'] * det.x6m/det.seg_area)
 
     for hist in hist_arr_edose_z_phi.values():
-        hist.Scale(sample['normalization']/det.seg_area)
+        hist.Scale(sample['normalization'] * det.x6m/det.seg_area)
 
     # Drawing
     ROOT.gStyle.SetOptStat(111111)
@@ -872,6 +872,21 @@ def process_sample(det, ids, sample, args):
         canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
                      args.out_format)
 
+    canvas.SetLogz(1)
+    for hist in hist_arr_fluence_z_phi.values():
+        hist.GetZaxis().SetTitleOffset(1.4)
+        hist.Draw('COLZ')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '_log.' +
+                     args.out_format)
+    canvas.SetLogz(0)
+
+    for hist in hist_arr_fluence_z_phi.values():
+        hist.GetZaxis().SetTitleOffset(1.4)
+        hist.GetXaxis().SetRangeUser(-1e4, 1e4)
+        hist.Draw('COLZ')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '_det.' +
+                     args.out_format)
+
     for hist in hist_arr_fluence_x_y.values():
         hist.GetZaxis().SetTitleOffset(1.4)
         hist.Draw('COLZ')
@@ -882,6 +897,21 @@ def process_sample(det, ids, sample, args):
         hist.GetZaxis().SetTitleOffset(1.4)
         hist.Draw('COLZ')
         canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
+                     args.out_format)
+
+    canvas.SetLogz(1)
+    for hist in hist_arr_energy_fluence_z_phi.values():
+        hist.GetZaxis().SetTitleOffset(1.4)
+        hist.Draw('COLZ')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '_log.' +
+                     args.out_format)
+    canvas.SetLogz(0)
+
+    for hist in hist_arr_energy_fluence_z_phi.values():
+        hist.GetZaxis().SetTitleOffset(1.4)
+        hist.GetXaxis().SetRangeUser(-1e4, 1e4)
+        hist.Draw('COLZ')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '_det.' +
                      args.out_format)
 
     for hist in hist_arr_energy_fluence_x_y.values():
@@ -897,10 +927,42 @@ def process_sample(det, ids, sample, args):
         canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
                      args.out_format)
 
+    canvas.SetLogz(1)
+    for hist in hist_arr_dose_z_phi.values():
+        hist.GetZaxis().SetTitleOffset(1.4)
+        hist.Draw('COLZ')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '_log.' +
+                     args.out_format)
+    canvas.SetLogz(0)
+
+    for hist in hist_arr_dose_z_phi.values():
+        hist.GetZaxis().SetTitleOffset(1.4)
+        hist.GetXaxis().SetRangeUser(-1e4, 1e4)
+        hist.Draw('COLZ')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '_det.' +
+                     args.out_format)
+
+
+    # Equivalent dose
     for hist in hist_arr_edose_z_phi.values():
         hist.GetZaxis().SetTitleOffset(1.4)
         hist.Draw('COLZ')
         canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
+                     args.out_format)
+
+    canvas.SetLogz(1)
+    for hist in hist_arr_edose_z_phi.values():
+        hist.GetZaxis().SetTitleOffset(1.4)
+        hist.Draw('COLZ')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '_log.' +
+                     args.out_format)
+    canvas.SetLogz(0)
+
+    for hist in hist_arr_edose_z_phi.values():
+        hist.GetZaxis().SetTitleOffset(1.4)
+        hist.GetXaxis().SetRangeUser(-1e4, 1e4)
+        hist.Draw('COLZ')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '_det.' +
                      args.out_format)
 
     outfile = ROOT.TFile.Open('plots_' + sample['outdir'] + '.root', 'RECREATE')
