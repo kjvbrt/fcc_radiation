@@ -1,2 +1,3 @@
-# fcc_radiation
-Investigation of radiation in FCC caverns
+# FCC Radiation
+
+Investigation of radiation in FCC caverns.
