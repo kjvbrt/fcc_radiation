@@ -600,7 +600,6 @@ def process_sample(det, ids, sample, args):
                     hist_arr_dose_z_phi['lambdas'].Fill(z, phi, xdose)
                     hist_arr_edose_z_phi['lambdas'].Fill(z, phi, xedose)
                 else:
-                    print(pdgid)
                     hist_arr_hits_z['other'].Fill(z)
                     hist_arr_hits_z_energy['other'].Fill(z, energy)
                     hist_arr_hits_z_total_energy['other'].Fill(z, total_energy)
@@ -886,6 +885,7 @@ def process_sample(det, ids, sample, args):
         hist.Draw('COLZ')
         canvas.Print(sample['outdir'] + '/' + hist.GetName() + '_det.' +
                      args.out_format)
+        hist.GetXaxis().SetRange()
 
     for hist in hist_arr_fluence_x_y.values():
         hist.GetZaxis().SetTitleOffset(1.4)
@@ -913,6 +913,7 @@ def process_sample(det, ids, sample, args):
         hist.Draw('COLZ')
         canvas.Print(sample['outdir'] + '/' + hist.GetName() + '_det.' +
                      args.out_format)
+        hist.GetXaxis().SetRange()
 
     for hist in hist_arr_energy_fluence_x_y.values():
         hist.GetZaxis().SetTitleOffset(1.4)
@@ -941,6 +942,7 @@ def process_sample(det, ids, sample, args):
         hist.Draw('COLZ')
         canvas.Print(sample['outdir'] + '/' + hist.GetName() + '_det.' +
                      args.out_format)
+        hist.GetXaxis().SetRange()
 
 
     # Equivalent dose
@@ -964,8 +966,10 @@ def process_sample(det, ids, sample, args):
         hist.Draw('COLZ')
         canvas.Print(sample['outdir'] + '/' + hist.GetName() + '_det.' +
                      args.out_format)
+        hist.GetXaxis().SetRange()
 
-    outfile = ROOT.TFile.Open('plots_' + sample['outdir'] + '.root', 'RECREATE')
+    outfile_path = 'plots_' + sample['outdir'] + '.root'
+    outfile = ROOT.TFile.Open(outfile_path, 'RECREATE')
 
     for hist in hist_arr_hits_z.values():
         outfile.WriteObject(hist, hist.GetName())
@@ -1014,6 +1018,8 @@ def process_sample(det, ids, sample, args):
     for hist in hist_arr_edose_z_phi.values():
         outfile.WriteObject(hist, hist.GetName())
 
+    print('INFO: All histograms/graphs saved to:')
+    print('     ', outfile_path)
     outfile.Close()
 
 
