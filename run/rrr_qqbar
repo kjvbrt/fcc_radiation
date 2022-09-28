@@ -1,0 +1,21 @@
+#!/bin/bash
+
+source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh > /tmp/fluxmeter_log_qqbar_${1} 2>&1
+
+# FCCDetectors
+export FCCDETECTORS=${HOME}/FCC/FCCDetectors/install/share/FCCDetectors
+export LD_LIBRARY_PATH=${HOME}/FCC/FCCDetectors/install/lib64:${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=${HOME}/FCC/FCCDetectors/install/lib:${LD_LIBRARY_PATH}
+export PYTHONPATH=${HOME}/FCC/FCCDetectors/install/python:${PYTHONPATH}
+# k4SimGeant4
+export k4SimGeant4_DIR=${HOME}/FCC/k4SimGeant4/install
+export K4SIMGEANT4=${HOME}/FCC/k4SimGeant4/install
+export PATH=${HOME}/FCC/k4SimGeant4/install/scripts:${PATH}
+export LD_LIBRARY_PATH=${HOME}/FCC/k4SimGeant4/install/lib:${LD_LIBRARY_PATH}
+export PYTHONPATH=${HOME}/FCC/k4SimGeant4/install/python:${PYTHONPATH}
+
+k4run /home/jsmiesko/FCC/fcc_radiation/run/runCLD_fluxmeter.py \
+      -n 1000 \
+      --SimG4Svc.seedValue 35${1} \
+      --out.filename output_fluxmeter_qqbar_${1}.root \
+      --EventDataSvc.input /opt/data/gen/pythia8/p8_ee_Zqq_ecm91_1000_${1}.root >> /tmp/fluxmeter_log_qqbar_${1} 2>&1
