@@ -1,0 +1,177 @@
+#!/usr/bin/env python
+
+import argparse
+import ROOT
+import os
+
+ROOT.gROOT.SetBatch(True)
+
+
+class Plots:
+    '''
+    Class to store samples, selection types and utils
+    '''
+    def __init__(self, args):
+        self.args = args
+        self.samples = ['ggall', 'tautau', 'qqbar']
+        self.selection_types = ['all', 'charged', 'neutral', 'no_neutrino',
+                                'neutral_no_neutrino',
+                                'neutrinos', 'neutrons', 'photons',
+                                'electrons', 'protons', 'muons', 'pions',
+                                'kaons', 'deuterons', 'lambdas', 'other']
+        self.sel_types_titles = ['', ' (charged)', ' (neutral)',
+                                 ' (no neutrino)', ' (neutral, no neutrino)',
+                                 ' (neutrinos)', ' (neutrons)', ' (photons)',
+                                 ' (electrons)', ' (protons)', ' (muons)',
+                                 ' (pions)', ' (kaons)', ' (deuterons)',
+                                 ' (lambdas)', ' (other)']
+
+    def get_hist_array(self, infile, hist_stem):
+        '''
+        Load histogram array from file
+        '''
+        ROOT.gStyle.SetOptStat(0)
+        ROOT.gROOT.ForceStyle()
+        all_hists = {}
+        for seltype in self.selection_types:
+            hists = {}
+            hist_list = ROOT.TList()
+            for sample in self.samples:
+                hist = infile.Get(hist_stem + '_' + seltype + '_' + sample)
+                hist.SetDirectory(0)
+                # hist.Sumw2()
+                hist_list.Add(hist)
+                hists[sample] = hist
+
+                hist_sum = hists[self.samples[0]].Clone(hist_stem)
+                hist_sum.Reset()
+                hist_sum.Merge(hist_list)
+                hists['sum'] = hist_sum
+
+            all_hists[seltype] = hists
+
+        return all_hists
+
+
+    def plot_hist_array(self, hist_arr, plot_title=None, logx=False):
+        '''
+        Plot histograms in the array
+        '''
+
+        canvas = ROOT.TCanvas('canvas', 'canvas', 500, 400)
+        canvas.SetLogy(1)
+        if logx:
+            canvas.SetLogx(1)
+        ROOT.gPad.SetRightMargin(0.05)
+
+        legend = ROOT.TLegend(0.7, 0.7, 0.95, 0.9)
+
+        for seltype, seltitle in zip(self.selection_types,
+                                     self.sel_types_titles):
+            histcoll = hist_arr[seltype]
+            legend.Clear()
+            if plot_title:
+                histcoll['sum'].SetTitle(plot_title + seltitle)
+            histcoll['sum'].SetLineColor(ROOT.kBlue-3)
+            histcoll['sum'].SetLineWidth(2)
+            legend.AddEntry(histcoll['sum'], 'Sum', 'L')
+            histcoll['sum'].Draw('')
+
+            histcoll['ggall'].SetLineColor(ROOT.kRed+1)
+            histcoll['ggall'].SetLineWidth(2)
+            legend.AddEntry(
+                histcoll['ggall'],
+                'e^{+}e^{-} #rightarrow #gamma #gamma #rightarrow f #bar{f}',
+                'L')
+            histcoll['ggall'].Draw('same')
+
+            histcoll['tautau'].SetLineColor(ROOT.kGreen + 3)
+            histcoll['tautau'].SetLineWidth(2)
+            legend.AddEntry(
+                histcoll['tautau'],
+                'e^{+}e^{-} #rightarrow #tau^{+} #tau^{-}',
+                'L')
+            histcoll['tautau'].Draw('same')
+
+            histcoll['qqbar'].SetLineColor(ROOT.kMagenta - 3)
+            histcoll['qqbar'].SetLineWidth(2)
+            legend.AddEntry(
+                histcoll['qqbar'],
+                'e^{+}e^{-} #rightarrow q #bar{q}',
+                'L')
+            histcoll['qqbar'].Draw('same')
+
+            legend.Draw()
+
+            canvas.Print(self.args.out_dir + '/' + histcoll['sum'].GetName() +
+                         '_' + seltype + '.' + self.args.out_format)
+
+
+    def plot_hist_array_2d(self, hist_arr, plot_title=None):
+        '''
+        Plot 2D histograms in the array
+        '''
+
+        canvas = ROOT.TCanvas('canvas', 'canvas', 500, 400)
+        ROOT.gPad.SetRightMargin(0.15)
+
+        for seltype, seltitle in zip(self.selection_types,
+                                     self.sel_types_titles):
+            histcoll = hist_arr[seltype]
+            if plot_title:
+                histcoll['sum'].SetTitle(plot_title + seltitle)
+            histcoll['sum'].GetZaxis().SetTitleOffset(1.4)
+            histcoll['sum'].Draw('COLZ')
+            canvas.Print(self.args.out_dir + '/' + histcoll['sum'].GetName() +
+                         '_' + seltype + '_sum.' + self.args.out_format)
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Yay, let\'s plot flux!')
+
+    parser.add_argument('-i', '--input-file',
+                        type=str,
+                        default='plots.root',
+                        help='input root file')
+    parser.add_argument('-f', '--out-format',
+                        type=str,
+                        default='png',
+                        help='output format of the plots')
+    parser.add_argument('-o', '--out-dir',
+                        type=str,
+                        default='sum_plots',
+                        help='output directory for the plots')
+
+    args = parser.parse_args()
+
+    plots = Plots(args)
+
+    if not os.path.exists(args.out_dir):
+        os.makedirs(args.out_dir)
+
+    infile = ROOT.TFile(args.input_file, 'READ')
+
+    hist_arr_hits_z = plots.get_hist_array(infile, 'hits_z')
+    hist_arr_hits_z_energy = plots.get_hist_array(infile, 'hits_z_energy')
+    hist_arr_particle_energy = plots.get_hist_array(infile, 'particle_energy')
+    hist_arr_fluence_z_phi = plots.get_hist_array(infile, 'fluence_z_phi')
+    hist_arr_energy_fluence_z_phi = plots.get_hist_array(infile,
+                                                         'energy_fluence_z_phi')
+    hist_arr_dose_z_phi = plots.get_hist_array(infile, 'dose_z_phi')
+    hist_arr_edose_z_phi = plots.get_hist_array(infile, 'edose_z_phi')
+
+    plots.plot_hist_array(hist_arr_hits_z, 'Number of particles')
+    plots.plot_hist_array(hist_arr_hits_z_energy,
+                          '#Sigma kin. energy of particles')
+    plots.plot_hist_array(hist_arr_particle_energy,
+                          'Kin. energy of particles',
+                          logx=True)
+    plots.plot_hist_array_2d(hist_arr_fluence_z_phi, 'Particle fluence')
+    plots.plot_hist_array_2d(hist_arr_energy_fluence_z_phi,
+                             'Energy fluence')
+    plots.plot_hist_array_2d(hist_arr_dose_z_phi, 'Dose')
+    plots.plot_hist_array_2d(hist_arr_edose_z_phi, 'Dose')
+
+
+if __name__ == '__main__':
+    main()

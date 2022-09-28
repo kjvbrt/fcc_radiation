@@ -1,0 +1,982 @@
+#!/usr/bin/env python
+
+import math
+import argparse
+import ROOT
+import os
+import numpy
+import array
+
+ROOT.gROOT.SetBatch(True)
+
+
+class Detector:
+    def __init__(self):
+        cld_solenoid_outer_radius = 4272  # mm
+        cld_ref_radius = 6000  # mm
+        # world_side = 6100  # mm
+        world_side = 33000  # mm
+
+        self.radius = cld_solenoid_outer_radius + 5  # mm
+        self.z = world_side - 5  # mm
+
+        self.r = self.radius
+        self.n = 200
+        self.n_r = self.n
+        self.n_z = self.n * 2
+        self.n_phi = int(self.n / 2)
+        self.dr = self.r / self.n_r
+        self.dz = 2 * self.z / self.n_z
+        self.dphi = 2 * math.pi / self.n_phi
+        self.ds = self.r * self.dphi
+        self.seg_area = self.ds * self.dz / 100  # cm**2
+        self.endcap_seg_area = self.dr * self.dr / 100  # cm**2
+        self.xdose = (cld_solenoid_outer_radius / cld_ref_radius)**2
+
+        print('Fluxmeter:')
+        print('  - radius:          ', self.r, 'mm')
+        print('  - z:               ', self.z, 'mm')
+        print('  - n:               ', self.n)
+        print('  - n_r:             ', self.n_r)
+        print('  - n_z:             ', self.n_z)
+        print('  - n_phi:           ', self.n_phi)
+        print('  - dr:              ', self.dr, 'mm')
+        print('  - dz:              ', self.dz, 'mm')
+        print('  - dphi:            ', self.dphi)
+        print('  - ds:              ', self.ds, 'mm')
+        print('  - seg. area:       ', self.seg_area, 'cm**2')
+        print('  - endcap seg. area:', self.endcap_seg_area, 'cm**2')
+        print('  - rescaling dose to 6 m:', self.xdose)
+
+
+class IDs:
+    def __init__(self, dbg):
+        self.photon = 22
+        self.electron = 11
+        self.muon = 13
+        self.proton = 2212
+        self.neutron = 2112
+        self.neutrino_e = 12
+        self.neutrino_m = 14
+        self.neutrino_t = 16
+        self.pion = 211
+        self.kaon_0_long = 130
+        self.kaon_0_short = 310
+        self.kaon_plus = 321
+        self.Lambda = 3122
+        self.deuteron = 1000010020
+
+        if dbg == True:
+            print('Particle IDs:')
+            print('  - photon:      ', self.photon)
+            print('  - electron:    ', self.electron)
+            print('  - muon:        ', self.muon)
+            print('  - proton:      ', self.proton)
+            print('  - neutron:     ', self.neutron)
+            print('  - neutrino_e:  ', self.neutrino_e)
+            print('  - neutrino_m:  ', self.neutrino_m)
+            print('  - neutrino_t:  ', self.neutrino_t)
+            print('  - pion:        ', self.pion)
+            print('  - kaon_0_long: ', self.kaon_0_long)
+            print('  - kaon_0_short:', self.kaon_0_short)
+            print('  - kaon_plus:   ', self.kaon_plus)
+            print('  - Labda:       ', self.Lambda)
+            print('  - deuteron:    ', self.deuteron)
+
+
+class Samples:
+    def __init__(self, sid):
+        self.list = []
+        if sid == 1:
+            self.list.append({
+                'name': 'ggall',
+                'title': 'e^{+}e^{-} #rightarrow #gamma #gamma #rightarrow f #bar{f}',
+                'normalization': 0.125,
+                'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_ggall_1_24.root',
+                'outdir': 'cld_no_yoke_no_ecal_xangle_ggall'
+            })
+        elif sid == 2:
+            self.list.append({
+                'name': 'tautau',
+                'title': 'e^{+}e^{-} #rightarrow #tau^{+} #tau^{-}',
+                'normalization': 0.125,
+                'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_tautau_1_24.root',
+                'outdir': 'cld_no_yoke_no_ecal_xangle_tautau'
+            })
+        elif sid == 3:
+            self.list.append({
+                'name': 'qqbar',
+                'title': 'e^{+}e^{-} #rightarrow q #bar{q}',
+                'normalization': 0.5,
+                'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_qqbar_1_120.root',
+                'outdir': 'cld_no_yoke_no_ecal_xangle_qqbar'
+            })
+        elif sid == 4:
+            self.list.append({
+                'name': 'qqbar',
+                'title': 'e^{+}e^{-} #rightarrow q #bar{q}',
+                'normalization': 0.5,
+                'infile': '../output/output_fluxmeter_cld_no_yoke_qqbar_1_120.root',
+                'outdir': 'cld_no_yoke_qqbar'
+            })
+        elif sid == 5:
+            self.list.append({
+                'name': 'qqbar',
+                'title': 'e^{+}e^{-} #rightarrow q #bar{q}',
+                'normalization': 5.,
+                'infile': '../output/output_fluxmeter_cld_xangle_qqbar_1_12.root',
+                'outdir': 'cld_xangle_qqbar'
+            })
+        else:
+            print('Undefined sample ID')
+            return
+
+        print('Samples:')
+        for sample in self.list:
+            print('  -', sample['name'], ':')
+            print('    - title:           ', sample['title'])
+            print('    - normalization:   ', sample['normalization'])
+            print('    - input file:      ', sample['infile'])
+            print('    - output directory:', sample['outdir'])
+
+
+def weight_factor(pdgid, ekin):
+    _wf = 1
+    # if True:
+    #     return _wf
+    _ids = IDs(False)
+    if abs(pdgid) == _ids.neutron:
+        #
+        # Table
+        # if ekin < 0.00001:
+        #     _wf = 5
+        # elif ekin < 0.0001:
+        #     _wf = 10
+        # elif ekin < 2:
+        #     _wf = 20
+        # elif ekin < 20:
+        #     _wf = 10
+        # else:
+        #     _wf = 5
+        #
+        # Equation
+        # if ekin < 0.001:
+        #     _fe = 1
+        #     _aa = 2.5
+        #     _bb = 18.2
+        # elif ekin < 0.050:
+        #     _fe = 2
+        #     _aa = 5
+        #     _bb = 17.0
+        # else:
+        #     _fe = 0.04
+        #     _aa = 2.5
+        #     _bb = 3.25
+        # _xe = -((math.log(ekin * 1000 *_fe, math.exp(1)))**2)/6
+        # _wf = _aa + _bb * math.exp(_xe)
+        #
+        # Full irradiation
+        _wf = 1
+    elif (abs(pdgid) == _ids.proton or abs(pdgid) == _ids.pion or abs(pdgid) == _ids.Lambda):
+        _wf = 2
+    elif (abs(pdgid) == _ids.photon or abs(pdgid) == _ids.electron or abs(pdgid) == _ids.muon):
+        _wf = 1
+    elif (abs(pdgid) == _ids.neutrino_e or abs(pdgid) == _ids.neutrino_m or abs(pdgid) == _ids.neutrino_t):
+        _wf = 0
+    elif abs(pdgid) == 130 or abs(pdgid) == 321 or abs(pdgid) == 310:
+        _wf = 2
+    elif abs(pdgid) == 1000010020:
+        _wf = 2
+    else:
+        _wf = 20
+
+    return _wf
+
+
+def process_sample(det, ids, sample, args):
+    infile = ROOT.TFile.Open(sample['infile'])
+    tree = infile.Get('events')
+
+    selection_types = ['all', 'charged', 'neutral', 'no_neutrino',
+                       'neutral_no_neutrino',
+                       'neutrinos', 'neutrons', 'photons',
+                       'electrons', 'protons', 'muons', 'pions', 'kaons',
+                       'deuterons', 'lambdas', 'other']
+    sel_types_titles = ['', ' (charged)', ' (neutral)',
+                        ' (no neutrino)', ' (neutral, no neutrino)',
+                        ' (neutrinos)', ' (neutrons)', ' (photons)',
+                        ' (electrons)', ' (protons)', ' (muons)',
+                        ' (pions)', ' (kaons)', ' (deuterons)',
+                        ' (lambdas)', ' (other)']
+
+    # Hits along z-axis
+    hist_arr_hits_z = {}
+    for seltype, seltitle in zip(selection_types, sel_types_titles):
+        hist = ROOT.TH1D(
+            'hits_z_' + seltype + '_' + sample['name'],
+            sample['title'] + ' | Number of particles' + seltitle + ';z [mm];N',
+            100, -1.1*det.z, 1.1*det.z)
+        hist.SetDirectory(0)
+        hist_arr_hits_z[seltype] = hist
+
+    # Sum of energy along z-axis
+    hist_arr_hits_z_energy = {}
+    for seltype, seltitle in zip(selection_types, sel_types_titles):
+        hist = ROOT.TH1D(
+            'hits_z_energy_' + seltype + '_' + sample['name'],
+            sample['title'] +
+            ' | #Sigma Kin. Energy of particles' + seltitle +
+            ';z [mm];#Sigma E_{k} [GeV]',
+            100, -1.1*det.z, 1.1*det.z)
+        hist.SetDirectory(0)
+        hist_arr_hits_z_energy[seltype] = hist
+
+    # Sum of total energy along z-axis
+    hist_arr_hits_z_total_energy = {}
+    for seltype, seltitle in zip(selection_types, sel_types_titles):
+        hist = ROOT.TH1D(
+            'hits_z_total_energy_' + seltype + '_' + sample['name'],
+            sample['title'] +
+            ' | #Sigma Total Energy of particles' + seltitle +
+            ';z [mm];#Sigma E_{t} [GeV]',
+            100, -1.1*det.z, 1.1*det.z)
+        hist.SetDirectory(0)
+        hist_arr_hits_z_total_energy[seltype] = hist
+
+    # Hits projection into z vs. r
+    hist_hits_z_r = ROOT.TH2D(
+        'hit_z_r_' + sample['name'],
+        sample['title'] + ' | Number of particles;z [mm];r [mm];N',
+        det.n, -1.1*det.z, 1.1*det.z,
+        det.n, 0., 1.1*det.r)
+    hist_hits_z_r.SetDirectory(0)
+
+    # Hits projection into x/y plane
+    hist_hits_x_y = ROOT.TH2D(
+        'hit_x_y_' + sample['name'],
+        sample['title'] + ' | Number of particles;x [mm];y [mm];N',
+        200, -(1.1*det.r), 1.1*det.r,
+        200, -(1.1*det.r), 1.1*det.r)
+    hist_hits_x_y.SetDirectory(0)
+
+    # Hits projection into x/y plane (only positive z)
+    hist_hits_x_y_pos = ROOT.TH2D(
+        'hit_x_y_pos_' + sample['name'],
+        sample['title'] + ' | Number of particles;x [mm];y [mm];N',
+        200, -(1.1*det.r), 1.1*det.r,
+        200, -(1.1*det.r), 1.1*det.r)
+    hist_hits_x_y_pos.SetDirectory(0)
+
+    # Hits in z/phi plane
+    hist_hits_z_phi = ROOT.TH2D(
+        'hit_z_phi_' + sample['name'],
+        sample['title'] + ' | Number of particles;z [mm];#phi;N',
+        200, -(1.1*det.z), 1.1*det.z,
+        200, -(1.1*math.pi), 1.1*math.pi)
+    hist_hits_z_phi.SetDirectory(0)
+
+    # Hits r
+    hist_hits_r = ROOT.TH1D(
+        'hit_r_' + sample['name'],
+        sample['title'] + ' | Number of particles;r [mm];N',
+        200, 0., 0.)
+    hist_hits_r.SetDirectory(0)
+
+    # Hits Cell ID
+    hist_cellid = ROOT.TH1D(
+        'cellid_' + sample['name'],
+        sample['title'] + ' | CellIDs of hits;Cell ID;N',
+        200, 0, 0)
+    hist_cellid.SetDirectory(0)
+
+    # Hits track ID
+    hist_trackid = ROOT.TH1D(
+        'trackid_' + sample['name'],
+        sample['title'] + ' | TrackIDs of hits;Track ID;N',
+        200, 0, 0)
+    hist_trackid.SetDirectory(0)
+
+    # Hits PDG ID
+    hist_pdgid = ROOT.TH1D(
+        'pdgid_' + sample['name'],
+        sample['title'] + ' | PDG IDs of hits;PDG ID;N',
+        200, 0, 0)
+    hist_pdgid.SetDirectory(0)
+
+    # Particle flux of the hit (only geometric factor)
+    hist_flux = ROOT.TH1D(
+        'particle_flux_' + sample['name'],
+        sample['title'] + ' | Particle flux;Flux;N',
+        200, 0, 0)
+    hist_flux.SetDirectory(0)
+
+    energy_bins = numpy.logspace(-12., 3., num=100, endpoint=True)
+    energy_bins = array.array('d', energy_bins)
+
+    # Energy spectra of particles
+    hist_arr_energy = {}
+    for seltype, seltitle in zip(selection_types, sel_types_titles):
+        hist = ROOT.TH1D(
+            'particle_energy_' + seltype + '_' + sample['name'],
+            sample['title'] +
+            ' | Energy of particles' + seltitle + ';E [GeV];N',
+            len(energy_bins) - 1, energy_bins)
+        hist.SetDirectory(0)
+        hist_arr_energy[seltype] = hist
+
+    # Total energy spectra of particles
+    hist_arr_total_energy = {}
+    for seltype, seltitle in zip(selection_types, sel_types_titles):
+        hist = ROOT.TH1D(
+            'particle_total_energy_' + seltype + '_' + sample['name'],
+            sample['title'] +
+            ' | Total energy of particles' + seltitle + ';E [GeV];N',
+            len(energy_bins) - 1, energy_bins)
+        hist.SetDirectory(0)
+        hist_arr_total_energy[seltype] = hist
+
+    # PDG IDs not catches particles
+    hist_pdg_other = ROOT.TH1D(
+        'pdgid_other_' + sample['name'],
+        sample['title'] + ' | Other particles PDG ID;PDG ID;N',
+        200, 0., 0.)
+    hist_pdg_other.SetDirectory(0)
+
+    # Hits time
+    hist_hits_time = ROOT.TH1D(
+        'hits_time_' + sample['name'],
+        sample['title'] + ' | Hit time;Time [ns];N',
+        200, 0, 0)
+    hist_hits_time.SetDirectory(0)
+
+    # Hits charge
+    hist_particle_charge = ROOT.TH1D(
+        'particle_charge_' + sample['name'],
+        sample['title'] + ' | Particle charge;Charge [e];N',
+        200, 0, 0)
+    hist_particle_charge.SetDirectory(0)
+
+    # Particle fluence in z/phi plane
+    hist_arr_fluence_z_phi = {}
+    for seltype, seltitle in zip(selection_types, sel_types_titles):
+        hist = ROOT.TH2D(
+            'fluence_z_phi_' + seltype + '_' + sample['name'],
+            sample['title'] + ' | Particle fluence' + seltitle +
+            ';z [mm];#phi;Particle fluence [cm^{-2}]',
+            det.n_z, -det.z, det.z,
+            det.n_phi, -math.pi, math.pi)
+        hist.SetDirectory(0)
+        hist_arr_fluence_z_phi[seltype] = hist
+
+    # Particle fluence in x/y plane
+    hist_arr_fluence_x_y = {}
+    for seltype, seltitle in zip(selection_types, sel_types_titles):
+        hist = ROOT.TH2D(
+            'fluence_x_y_' + seltype + '_' + sample['name'],
+            sample['title'] + ' | Particle fluence' + seltitle +
+            ';x [mm];y [mm];Particle fluence [cm^{-2}]',
+            det.n_r, -det.r, det.r,
+            det.n_r, -det.r, det.r)
+        hist.SetDirectory(0)
+        hist_arr_fluence_x_y[seltype] = hist
+
+    # Energy fluence in z/phi plane
+    hist_arr_energy_fluence_z_phi = {}
+    for seltype, seltitle in zip(selection_types, sel_types_titles):
+        hist = ROOT.TH2D(
+            'energy_fluence_z_phi_' + seltype + '_' + sample['name'],
+            sample['title'] + ' | Energy fluence' + seltitle +
+            ';z [mm];#phi;Particle fluence [GeV cm^{-2}]',
+            det.n_z, -det.z, det.z,
+            det.n_phi, -math.pi, math.pi)
+        hist.SetDirectory(0)
+        hist_arr_energy_fluence_z_phi[seltype] = hist
+
+    # Energy fluence in x/y plane
+    hist_arr_energy_fluence_x_y = {}
+    for seltype, seltitle in zip(selection_types, sel_types_titles):
+        hist = ROOT.TH2D(
+            'energy_fluence_x_y_' + seltype + '_' + sample['name'],
+            sample['title'] + ' | Energy fluence' + seltitle +
+            ';x [mm];y [mm];Particle fluence [GeV cm^{-2}]',
+            det.n_r, -det.r, det.r,
+            det.n_r, -det.r, det.r)
+        hist.SetDirectory(0)
+        hist_arr_energy_fluence_x_y[seltype] = hist
+
+    # Dose in z/phi plane
+    hist_arr_dose_z_phi = {}
+    for seltype, seltitle in zip(selection_types, sel_types_titles):
+        hist = ROOT.TH2D(
+            'dose_z_phi_' + seltype + '_' + sample['name'],
+            sample['title'] + ' | Dose' + seltitle +
+            ';z [mm];#phi; Dose [Gy h]',
+            det.n_z, -det.z, det.z,
+            det.n_phi, -math.pi, math.pi)
+        hist.SetDirectory(0)
+        hist_arr_dose_z_phi[seltype] = hist
+
+    # Equivalent dose in z/phi plane
+    hist_arr_edose_z_phi = {}
+    for seltype, seltitle in zip(selection_types, sel_types_titles):
+        hist = ROOT.TH2D(
+            'edose_z_phi_' + seltype + '_' + sample['name'],
+            sample['title'] + ' | Equivalent dose' + seltitle +
+            ';z [mm];#phi; Equivalent dose [Sv h]',
+            det.n_z, -det.z, det.z,
+            det.n_phi, -math.pi, math.pi)
+        hist.SetDirectory(0)
+        hist_arr_edose_z_phi[seltype] = hist
+
+
+    print('INFO: Processing sample:', sample['name'])
+
+    # Dose conversion factor
+    _human_area = 100           # cm-2
+    _human_weight = 1           # kg
+    _period = 3600              # 1 h
+    _gevtojoule = 1.602e-10     # GeV to Joule
+    dconv = _human_area * _period / _human_weight * _gevtojoule
+
+    for i, event in enumerate(tree):
+        if i % 500 == 0:
+            print('event:', i)
+
+        for (position,
+             charge,
+             pdgid,
+             energy,
+             total_energy) in zip(event.HitPosition,
+                                  event.ParticleCharge,
+                                  event.ParticlePDGID,
+                                  event.ParticleEnergy,
+                                  event.ParticleTotalEnergy):
+            x = position[0]
+            y = position[1]
+            z = position[2]
+            r = math.sqrt(math.pow(x, 2) + math.pow(y, 2))
+            phi = math.acos(x / r)
+            if y < 0:
+                phi *= -1
+            wf = weight_factor(pdgid, energy)
+            xdose = energy * wf * dconv
+            xedose = wf * xdose
+
+            hist_hits_z_r.Fill(z, r)
+            hist_hits_r.Fill(r)
+
+            if abs(z) < (det.z - det.dz):
+                hist_hits_z_phi.Fill(z, phi)
+                hist_arr_hits_z['all'].Fill(z)
+                hist_arr_hits_z_energy['all'].Fill(z, energy)
+                hist_arr_hits_z_total_energy['all'].Fill(z, total_energy)
+                hist_arr_fluence_z_phi['all'].Fill(z, phi)
+                hist_arr_energy_fluence_z_phi['all'].Fill(z, phi, energy)
+                hist_arr_dose_z_phi['all'].Fill(z, phi, xdose)
+                hist_arr_edose_z_phi['all'].Fill(z, phi, xedose)
+
+                if abs(charge) > 0:
+                    hist_arr_hits_z['charged'].Fill(z)
+                    hist_arr_hits_z_energy['charged'].Fill(z, energy)
+                    hist_arr_hits_z_total_energy['charged'].Fill(z, total_energy)
+                    hist_arr_fluence_z_phi['charged'].Fill(z, phi)
+                    hist_arr_energy_fluence_z_phi['charged'].Fill(z, phi, energy)
+                    hist_arr_dose_z_phi['charged'].Fill(z, phi, xdose)
+                    hist_arr_edose_z_phi['charged'].Fill(z, phi, xedose)
+
+                if (abs(pdgid) != ids.neutrino_e and
+                        abs(pdgid) != ids.neutrino_m and
+                        abs(pdgid) != ids.neutrino_t):
+                    hist_arr_hits_z['no_neutrino'].Fill(z)
+                    hist_arr_hits_z_energy['no_neutrino'].Fill(z, energy)
+                    hist_arr_hits_z_total_energy['no_neutrino'].Fill(z, total_energy)
+                    hist_arr_fluence_z_phi['no_neutrino'].Fill(z, phi)
+                    hist_arr_energy_fluence_z_phi['no_neutrino'].Fill(z, phi, energy)
+                    hist_arr_dose_z_phi['no_neutrino'].Fill(z, phi, xdose)
+                    hist_arr_edose_z_phi['no_neutrino'].Fill(z, phi, xedose)
+
+                if abs(charge) == 0:
+                    hist_arr_hits_z['neutral'].Fill(z)
+                    hist_arr_hits_z_energy['neutral'].Fill(z, energy)
+                    hist_arr_hits_z_total_energy['neutral'].Fill(z, total_energy)
+                    hist_arr_fluence_z_phi['neutral'].Fill(z, phi)
+                    hist_arr_energy_fluence_z_phi['neutral'].Fill(z, phi, energy)
+                    hist_arr_dose_z_phi['neutral'].Fill(z, phi, xdose)
+                    hist_arr_edose_z_phi['neutral'].Fill(z, phi, xedose)
+                    if (abs(pdgid) != ids.neutrino_e and
+                            abs(pdgid) != ids.neutrino_m and
+                            abs(pdgid) != ids.neutrino_t):
+                        hist_arr_hits_z['neutral_no_neutrino'].Fill(z)
+                        hist_arr_hits_z_energy['neutral_no_neutrino'].Fill(z, energy)
+                        hist_arr_hits_z_total_energy['neutral_no_neutrino'].Fill(z, total_energy)
+                        hist_arr_fluence_z_phi['neutral_no_neutrino'].Fill(z, phi)
+                        hist_arr_energy_fluence_z_phi['neutral_no_neutrino'].Fill(z, phi, energy)
+                        hist_arr_dose_z_phi['neutral_no_neutrino'].Fill(z, phi, xdose)
+                        hist_arr_edose_z_phi['neutral_no_neutrino'].Fill(z, phi, xedose)
+
+                # By PDG ID
+                if (abs(pdgid) == ids.neutrino_e or
+                        abs(pdgid) == ids.neutrino_m or
+                        abs(pdgid) == ids.neutrino_t):
+                    hist_arr_hits_z['neutrinos'].Fill(z)
+                    hist_arr_hits_z_energy['neutrinos'].Fill(z, energy)
+                    hist_arr_hits_z_total_energy['neutrinos'].Fill(z, total_energy)
+                    hist_arr_fluence_z_phi['neutrinos'].Fill(z, phi)
+                    hist_arr_energy_fluence_z_phi['neutrinos'].Fill(z, phi, energy)
+                    hist_arr_dose_z_phi['neutrinos'].Fill(z, phi, xdose)
+                    hist_arr_edose_z_phi['neutrinos'].Fill(z, phi, xedose)
+                elif abs(pdgid) == ids.neutron:
+                    hist_arr_hits_z['neutrons'].Fill(z)
+                    hist_arr_hits_z_energy['neutrons'].Fill(z, energy)
+                    hist_arr_hits_z_total_energy['neutrons'].Fill(z, total_energy)
+                    hist_arr_fluence_z_phi['neutrons'].Fill(z, phi)
+                    hist_arr_energy_fluence_z_phi['neutrons'].Fill(z, phi, energy)
+                    hist_arr_dose_z_phi['neutrons'].Fill(z, phi, xdose)
+                    hist_arr_edose_z_phi['neutrons'].Fill(z, phi, xedose)
+                elif abs(pdgid) == ids.photon:
+                    hist_arr_hits_z['photons'].Fill(z)
+                    hist_arr_hits_z_energy['photons'].Fill(z, energy)
+                    hist_arr_hits_z_total_energy['photons'].Fill(z, total_energy)
+                    hist_arr_fluence_z_phi['photons'].Fill(z, phi)
+                    hist_arr_energy_fluence_z_phi['photons'].Fill(z, phi, energy)
+                    hist_arr_dose_z_phi['photons'].Fill(z, phi, xdose)
+                    hist_arr_edose_z_phi['photons'].Fill(z, phi, xedose)
+                elif abs(pdgid) == ids.electron:
+                    hist_arr_hits_z['electrons'].Fill(z)
+                    hist_arr_hits_z_energy['electrons'].Fill(z, energy)
+                    hist_arr_hits_z_total_energy['electrons'].Fill(z, total_energy)
+                    hist_arr_fluence_z_phi['electrons'].Fill(z, phi)
+                    hist_arr_energy_fluence_z_phi['electrons'].Fill(z, phi, energy)
+                    hist_arr_dose_z_phi['electrons'].Fill(z, phi, xdose)
+                    hist_arr_edose_z_phi['electrons'].Fill(z, phi, xedose)
+                elif abs(pdgid) == ids.proton:
+                    hist_arr_hits_z['protons'].Fill(z)
+                    hist_arr_hits_z_energy['protons'].Fill(z, energy)
+                    hist_arr_hits_z_total_energy['protons'].Fill(z, total_energy)
+                    hist_arr_fluence_z_phi['protons'].Fill(z, phi)
+                    hist_arr_energy_fluence_z_phi['protons'].Fill(z, phi, energy)
+                    hist_arr_dose_z_phi['protons'].Fill(z, phi, xdose)
+                    hist_arr_edose_z_phi['protons'].Fill(z, phi, xedose)
+                elif abs(pdgid) == ids.muon:
+                    hist_arr_hits_z['muons'].Fill(z)
+                    hist_arr_hits_z_energy['muons'].Fill(z, energy)
+                    hist_arr_hits_z_total_energy['muons'].Fill(z, total_energy)
+                    hist_arr_fluence_z_phi['muons'].Fill(z, phi)
+                    hist_arr_energy_fluence_z_phi['muons'].Fill(z, phi, energy)
+                    hist_arr_dose_z_phi['muons'].Fill(z, phi, xdose)
+                    hist_arr_edose_z_phi['muons'].Fill(z, phi, xedose)
+                elif abs(pdgid) == ids.pion:
+                    hist_arr_hits_z['pions'].Fill(z)
+                    hist_arr_hits_z_energy['pions'].Fill(z, energy)
+                    hist_arr_hits_z_total_energy['pions'].Fill(z, total_energy)
+                    hist_arr_fluence_z_phi['pions'].Fill(z, phi)
+                    hist_arr_energy_fluence_z_phi['pions'].Fill(z, phi, energy)
+                    hist_arr_dose_z_phi['pions'].Fill(z, phi, xdose)
+                    hist_arr_edose_z_phi['pions'].Fill(z, phi, xedose)
+                elif (abs(pdgid) == ids.kaon_0_long or
+                      abs(pdgid) == ids.kaon_0_short or
+                      abs(pdgid) == ids.kaon_plus):
+                    hist_arr_hits_z['kaons'].Fill(z)
+                    hist_arr_hits_z_energy['kaons'].Fill(z, energy)
+                    hist_arr_hits_z_total_energy['kaons'].Fill(z, total_energy)
+                    hist_arr_fluence_z_phi['kaons'].Fill(z, phi)
+                    hist_arr_energy_fluence_z_phi['kaons'].Fill(z, phi, energy)
+                    hist_arr_dose_z_phi['kaons'].Fill(z, phi, xdose)
+                    hist_arr_edose_z_phi['kaons'].Fill(z, phi, xedose)
+                elif abs(pdgid) == ids.deuteron:
+                    hist_arr_hits_z['deuterons'].Fill(z)
+                    hist_arr_hits_z_energy['deuterons'].Fill(z, energy)
+                    hist_arr_hits_z_total_energy['deuterons'].Fill(z, total_energy)
+                    hist_arr_fluence_z_phi['deuterons'].Fill(z, phi)
+                    hist_arr_energy_fluence_z_phi['deuterons'].Fill(z, phi, energy)
+                    hist_arr_dose_z_phi['deuterons'].Fill(z, phi, xdose)
+                    hist_arr_edose_z_phi['deuterons'].Fill(z, phi, xedose)
+                elif abs(pdgid) == ids.Lambda:
+                    hist_arr_hits_z['lambdas'].Fill(z)
+                    hist_arr_hits_z_energy['lambdas'].Fill(z, energy)
+                    hist_arr_hits_z_total_energy['lambdas'].Fill(z, total_energy)
+                    hist_arr_fluence_z_phi['lambdas'].Fill(z, phi)
+                    hist_arr_energy_fluence_z_phi['lambdas'].Fill(z, phi, energy)
+                    hist_arr_dose_z_phi['lambdas'].Fill(z, phi, xdose)
+                    hist_arr_edose_z_phi['lambdas'].Fill(z, phi, xedose)
+                else:
+                    print(pdgid)
+                    hist_arr_hits_z['other'].Fill(z)
+                    hist_arr_hits_z_energy['other'].Fill(z, energy)
+                    hist_arr_hits_z_total_energy['other'].Fill(z, total_energy)
+                    hist_arr_fluence_z_phi['other'].Fill(z, phi)
+                    hist_arr_energy_fluence_z_phi['other'].Fill(z, phi, energy)
+                    hist_arr_dose_z_phi['other'].Fill(z, phi, xdose)
+                    hist_arr_edose_z_phi['other'].Fill(z, phi, xedose)
+
+            if abs(r) < (det.r - det.dr):
+                hist_hits_x_y.Fill(x, y)
+                if z > 0:
+                    hist_hits_x_y_pos.Fill(x, y)
+                hist_arr_fluence_x_y['all'].Fill(x, y)
+                hist_arr_energy_fluence_x_y['all'].Fill(x, y, energy)
+
+                if abs(charge) > 0:
+                    hist_arr_fluence_x_y['charged'].Fill(x, y)
+                    hist_arr_energy_fluence_x_y['charged'].Fill(x, y, energy)
+
+                if (abs(pdgid) != ids.neutrino_e and
+                        abs(pdgid) != ids.neutrino_m and
+                        abs(pdgid) != ids.neutrino_t):
+                    hist_arr_fluence_x_y['no_neutrino'].Fill(x, y)
+                    hist_arr_energy_fluence_x_y['no_neutrino'].Fill(x, y, energy)
+
+                if abs(charge) == 0:
+                    hist_arr_fluence_x_y['neutral'].Fill(x, y)
+                    hist_arr_energy_fluence_x_y['neutral'].Fill(x, y, energy)
+                    if (abs(pdgid) != ids.neutrino_e and
+                            abs(pdgid) != ids.neutrino_m and
+                            abs(pdgid) != ids.neutrino_t):
+                        hist_arr_fluence_x_y['neutral_no_neutrino'].Fill(x, y)
+                        hist_arr_energy_fluence_x_y['neutral_no_neutrino'].Fill(x, y, energy)
+
+                # By PDG ID
+                if (abs(pdgid) == ids.neutrino_e or
+                        abs(pdgid) == ids.neutrino_m or
+                        abs(pdgid) == ids.neutrino_t):
+                    hist_arr_fluence_x_y['neutrinos'].Fill(x, y)
+                    hist_arr_energy_fluence_x_y['neutrinos'].Fill(x, y, energy)
+                elif abs(pdgid) == ids.neutron:
+                    hist_arr_fluence_x_y['neutrons'].Fill(x, y)
+                    hist_arr_energy_fluence_x_y['neutrons'].Fill(x, y, energy)
+                elif abs(pdgid) == ids.photon:
+                    hist_arr_fluence_x_y['photons'].Fill(x, y)
+                    hist_arr_energy_fluence_x_y['photons'].Fill(x, y, energy)
+                elif abs(pdgid) == ids.electron:
+                    hist_arr_fluence_x_y['electrons'].Fill(x, y)
+                    hist_arr_energy_fluence_x_y['electrons'].Fill(x, y, energy)
+                elif abs(pdgid) == ids.proton:
+                    hist_arr_fluence_x_y['protons'].Fill(x, y)
+                    hist_arr_energy_fluence_x_y['protons'].Fill(x, y, energy)
+                elif abs(pdgid) == ids.muon:
+                    hist_arr_fluence_x_y['muons'].Fill(x, y)
+                    hist_arr_energy_fluence_x_y['muons'].Fill(x, y, energy)
+                elif abs(pdgid) == ids.pion:
+                    hist_arr_fluence_x_y['pions'].Fill(x, y)
+                    hist_arr_energy_fluence_x_y['pions'].Fill(x, y, energy)
+                elif (abs(pdgid) == ids.kaon_0_long or
+                      abs(pdgid) == ids.kaon_0_short or
+                      abs(pdgid) == ids.kaon_plus):
+                    hist_arr_fluence_x_y['kaons'].Fill(x, y)
+                    hist_arr_energy_fluence_x_y['kaons'].Fill(x, y, energy)
+                elif abs(pdgid) == ids.deuteron:
+                    hist_arr_fluence_x_y['deuterons'].Fill(x, y)
+                    hist_arr_energy_fluence_x_y['deuterons'].Fill(x, y, energy)
+                elif abs(pdgid) == ids.Lambda:
+                    hist_arr_fluence_x_y['lambdas'].Fill(x, y)
+                    hist_arr_energy_fluence_x_y['lambdas'].Fill(x, y, energy)
+                else:
+                    hist_arr_fluence_x_y['other'].Fill(x, y)
+                    hist_arr_energy_fluence_x_y['other'].Fill(x, y, energy)
+
+        for cellid in event.HitCellID:
+            hist_cellid.Fill(cellid)
+
+        for trackid in event.TrackID:
+            hist_trackid.Fill(trackid)
+
+        for pdgid in event.ParticlePDGID:
+            hist_pdgid.Fill(pdgid)
+
+        for flux in event.ParticleFlux:
+            hist_flux.Fill(flux)
+
+        for energy, total_energy, pdgid, charge in zip(event.ParticleEnergy,
+                                                       event.ParticleTotalEnergy,
+                                                       event.ParticlePDGID,
+                                                       event.ParticleCharge):
+            hist_arr_energy['all'].Fill(energy)
+            hist_arr_total_energy['all'].Fill(energy)
+
+            if abs(charge) > 0:
+                hist_arr_energy['charged'].Fill(energy)
+                hist_arr_total_energy['charged'].Fill(total_energy)
+
+            if (abs(pdgid) != ids.neutrino_e and
+                    abs(pdgid) != ids.neutrino_m and
+                    abs(pdgid) != ids.neutrino_t):
+                hist_arr_energy['no_neutrino'].Fill(energy)
+                hist_arr_total_energy['no_neutrino'].Fill(total_energy)
+
+            if abs(charge) == 0:
+                hist_arr_energy['neutral'].Fill(energy)
+                hist_arr_total_energy['neutral'].Fill(total_energy)
+                if (abs(pdgid) != ids.neutrino_e and
+                        abs(pdgid) != ids.neutrino_m and
+                        abs(pdgid) != ids.neutrino_t):
+                    hist_arr_energy['neutral_no_neutrino'].Fill(energy)
+                    hist_arr_total_energy['neutral_no_neutrino'].Fill(total_energy)
+
+            # Bu PDG ID
+            if (abs(pdgid) == ids.neutrino_e or
+                    abs(pdgid) == ids.neutrino_m or
+                    abs(pdgid) == ids.neutrino_t):
+                hist_arr_energy['neutrinos'].Fill(energy)
+                hist_arr_total_energy['neutrinos'].Fill(total_energy)
+            elif abs(pdgid) == ids.photon:
+                hist_arr_energy['photons'].Fill(energy)
+                hist_arr_total_energy['photons'].Fill(total_energy)
+            elif abs(pdgid) == ids.electron:
+                hist_arr_energy['electrons'].Fill(energy)
+                hist_arr_total_energy['electrons'].Fill(total_energy)
+            elif abs(pdgid) == ids.muon:
+                hist_arr_energy['muons'].Fill(energy)
+                hist_arr_total_energy['muons'].Fill(energy)
+            elif abs(pdgid) == ids.proton:
+                hist_arr_energy['protons'].Fill(energy)
+                hist_arr_total_energy['protons'].Fill(energy)
+            elif abs(pdgid) == ids.neutron:
+                hist_arr_energy['neutrons'].Fill(energy)
+                hist_arr_total_energy['neutrons'].Fill(energy)
+            elif abs(pdgid) == ids.pion:
+                hist_arr_energy['pions'].Fill(energy)
+                hist_arr_total_energy['pions'].Fill(energy)
+            elif (abs(pdgid) == ids.kaon_0_long or
+                  abs(pdgid) == ids.kaon_0_short or
+                  abs(pdgid) == ids.kaon_plus):
+                hist_arr_energy['kaons'].Fill(energy)
+                hist_arr_total_energy['kaons'].Fill(energy)
+            elif abs(pdgid) == ids.deuteron:
+                hist_arr_energy['deuterons'].Fill(energy)
+                hist_arr_total_energy['deuterons'].Fill(energy)
+            elif abs(pdgid) == ids.Lambda:
+                hist_arr_energy['lambdas'].Fill(energy)
+                hist_arr_total_energy['lambdas'].Fill(energy)
+            else:
+                hist_arr_energy['other'].Fill(energy)
+                hist_arr_total_energy['other'].Fill(energy)
+                hist_pdg_other.Fill(pdgid)
+                print('PDG ID: ', pdgid)
+                print('Energy: ', energy)
+
+        for time in event.HitTime:
+            hist_hits_time.Fill(time)
+
+        for charge in event.ParticleCharge:
+            hist_particle_charge.Fill(charge)
+
+    infile.Close()
+
+    # Normalization
+    for hist in hist_arr_energy.values():
+        hist.Scale(sample['normalization'])
+
+    for hist in hist_arr_total_energy.values():
+        hist.Scale(sample['normalization'])
+
+    for hist in hist_arr_fluence_z_phi.values():
+        hist.Scale(sample['normalization']/det.seg_area)
+
+    for hist in hist_arr_fluence_x_y.values():
+        hist.Scale(sample['normalization']/det.endcap_seg_area)
+
+    for hist in hist_arr_energy_fluence_z_phi.values():
+        hist.Scale(sample['normalization']/det.seg_area)
+
+    for hist in hist_arr_energy_fluence_x_y.values():
+        hist.Scale(sample['normalization']/det.endcap_seg_area)
+
+    for hist in hist_arr_dose_z_phi.values():
+        hist.Scale(sample['normalization']/det.seg_area)
+
+    for hist in hist_arr_edose_z_phi.values():
+        hist.Scale(sample['normalization']/det.seg_area)
+
+    # Drawing
+    ROOT.gStyle.SetOptStat(111111)
+
+    if not os.path.exists(sample['outdir']):
+        os.makedirs(sample['outdir'])
+
+    canvas = ROOT.TCanvas('canvas', 'canvas', 500, 400)
+
+    hist_hits_x_y.Draw('COLZ')
+    canvas.Print(sample['outdir'] + '/hits_x_y.' + args.out_format)
+    hist_hits_x_y_pos.Draw('COLZ')
+    canvas.Print(sample['outdir'] + '/hits_pos_x_y.' + args.out_format)
+    hist_hits_z_r.Draw('COLZ')
+    canvas.Print(sample['outdir'] + '/hits_z_r.' + args.out_format)
+
+    for hist in hist_arr_hits_z.values():
+        hist.Draw('')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
+                     args.out_format)
+
+    canvas.SetLogy(1)
+    for hist in hist_arr_hits_z_energy.values():
+        hist.Draw('L')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
+                     args.out_format)
+    canvas.SetLogy(0)
+
+    canvas.SetLogy(1)
+    for hist in hist_arr_hits_z_total_energy.values():
+        hist.Draw('L')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
+                     args.out_format)
+    canvas.SetLogy(0)
+
+    hist_hits_z_phi.Draw('COLZ')
+    canvas.Print(sample['outdir'] + '/hits_z_phi.' + args.out_format)
+    hist_hits_r.Draw('')
+    canvas.Print(sample['outdir'] + '/hits_r.' + args.out_format)
+    hist_cellid.Draw('')
+    canvas.Print(sample['outdir'] + '/hits_cellid.' + args.out_format)
+    hist_trackid.Draw('')
+    canvas.Print(sample['outdir'] + '/hits_trackid.' + args.out_format)
+    canvas.SetLogy(1)
+    hist_pdgid.Draw('')
+    canvas.Print(sample['outdir'] + '/hits_pdgid.' + args.out_format)
+    canvas.SetLogy(0)
+    hist_flux.Draw('')
+    canvas.Print(sample['outdir'] + '/particle_flux.' + args.out_format)
+    hist_hits_time.Draw('')
+    canvas.Print(sample['outdir'] + '/hits_time.' + args.out_format)
+    hist_particle_charge.Draw('')
+    canvas.Print(sample['outdir'] + '/particle_charge.' + args.out_format)
+
+    canvas.SetLogx(1)
+    canvas.SetLogy(1)
+    for hist in hist_arr_energy.values():
+        hist.Draw('L')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
+                     args.out_format)
+    canvas.SetLogx(0)
+    canvas.SetLogy(0)
+
+    canvas.SetLogx(1)
+    canvas.SetLogy(1)
+    for hist in hist_arr_total_energy.values():
+        hist.Draw('L')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
+                     args.out_format)
+    canvas.SetLogx(0)
+    canvas.SetLogy(0)
+
+    hist_pdg_other.Draw()
+    canvas.Print(sample['outdir'] + '/' + hist_pdg_other.GetName() + '.' +
+                 args.out_format)
+
+    # Fluence
+    ROOT.gStyle.SetOptStat(0)
+    ROOT.gPad.SetRightMargin(0.15)
+
+    for hist in hist_arr_fluence_z_phi.values():
+        hist.GetZaxis().SetTitleOffset(1.4)
+        hist.Draw('COLZ')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
+                     args.out_format)
+
+    for hist in hist_arr_fluence_x_y.values():
+        hist.GetZaxis().SetTitleOffset(1.4)
+        hist.Draw('COLZ')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
+                     args.out_format)
+
+    for hist in hist_arr_energy_fluence_z_phi.values():
+        hist.GetZaxis().SetTitleOffset(1.4)
+        hist.Draw('COLZ')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
+                     args.out_format)
+
+    for hist in hist_arr_energy_fluence_x_y.values():
+        hist.GetZaxis().SetTitleOffset(1.4)
+        hist.Draw('COLZ')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
+                     args.out_format)
+
+    # Dose
+    for hist in hist_arr_dose_z_phi.values():
+        hist.GetZaxis().SetTitleOffset(1.4)
+        hist.Draw('COLZ')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
+                     args.out_format)
+
+    for hist in hist_arr_edose_z_phi.values():
+        hist.GetZaxis().SetTitleOffset(1.4)
+        hist.Draw('COLZ')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
+                     args.out_format)
+
+    outfile = ROOT.TFile.Open('plots_' + sample['outdir'] + '.root', 'RECREATE')
+
+    for hist in hist_arr_hits_z.values():
+        outfile.WriteObject(hist, hist.GetName())
+
+    for hist in hist_arr_hits_z_energy.values():
+        outfile.WriteObject(hist, hist.GetName())
+
+    for hist in hist_arr_hits_z_total_energy.values():
+        outfile.WriteObject(hist, hist.GetName())
+
+    outfile.WriteObject(hist_hits_z_r, hist_hits_z_r.GetName())
+    outfile.WriteObject(hist_hits_x_y, hist_hits_x_y.GetName())
+    outfile.WriteObject(hist_hits_x_y_pos, hist_hits_x_y_pos.GetName())
+    outfile.WriteObject(hist_hits_z_phi, hist_hits_z_phi.GetName())
+    outfile.WriteObject(hist_hits_r, hist_hits_r.GetName())
+    outfile.WriteObject(hist_cellid, hist_cellid.GetName())
+    outfile.WriteObject(hist_trackid, hist_trackid.GetName())
+    outfile.WriteObject(hist_pdgid, hist_pdgid.GetName())
+    outfile.WriteObject(hist_flux, hist_flux.GetName())
+
+    for hist in hist_arr_energy.values():
+        outfile.WriteObject(hist, hist.GetName())
+
+    for hist in hist_arr_total_energy.values():
+        outfile.WriteObject(hist, hist.GetName())
+
+    outfile.WriteObject(hist_pdg_other, hist_pdg_other.GetName())
+    outfile.WriteObject(hist_hits_time, hist_hits_time.GetName())
+    outfile.WriteObject(hist_particle_charge, hist_particle_charge.GetName())
+
+    for hist in hist_arr_fluence_z_phi.values():
+        outfile.WriteObject(hist, hist.GetName())
+
+    for hist in hist_arr_fluence_x_y.values():
+        outfile.WriteObject(hist, hist.GetName())
+
+    for hist in hist_arr_energy_fluence_z_phi.values():
+        outfile.WriteObject(hist, hist.GetName())
+
+    for hist in hist_arr_energy_fluence_x_y.values():
+        outfile.WriteObject(hist, hist.GetName())
+
+    for hist in hist_arr_dose_z_phi.values():
+        outfile.WriteObject(hist, hist.GetName())
+
+    for hist in hist_arr_edose_z_phi.values():
+        outfile.WriteObject(hist, hist.GetName())
+
+    outfile.Close()
+
+
+def main():
+    det = Detector()
+    ids = IDs(True)
+
+    parser = argparse.ArgumentParser(description='Yay, let\'s plot flux!')
+
+    parser.add_argument('-f', '--out-format',
+                        type=str,
+                        default='png',
+                        help='output format of the plots')
+    parser.add_argument('-s', '--sid',
+                        type=int,
+                        default=3,
+                        help='sample ID (1 = ggall, 2 = ditau, 3 = qqbar, 4 = qqbar w/ ecal, 5 = qqbar full CLD)')
+
+    args = parser.parse_args()
+    print(args)
+
+    samples = Samples(args.sid)
+    for sample in samples.list:
+        process_sample(det, ids, sample, args)
+
+
+if __name__ == '__main__':
+    main()
