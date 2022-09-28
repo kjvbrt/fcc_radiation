@@ -94,6 +94,7 @@ class Samples:
                 'normalization': 0.125,
                 'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_ggall_1_24.root',
                 'outdir': 'cld_no_yoke_no_ecal_xangle_ggall'
+                'x6m': True
             })
         elif sid == 2:
             self.list.append({
@@ -102,6 +103,7 @@ class Samples:
                 'normalization': 0.125,
                 'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_tautau_1_24.root',
                 'outdir': 'cld_no_yoke_no_ecal_xangle_tautau'
+                'x6m': True
             })
         elif sid == 3:
             self.list.append({
@@ -110,6 +112,7 @@ class Samples:
                 'normalization': 0.5,
                 'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_qqbar_1_120.root',
                 'outdir': 'cld_no_yoke_no_ecal_xangle_qqbar'
+                'x6m': True
             })
         elif sid == 4:
             self.list.append({
@@ -118,6 +121,7 @@ class Samples:
                 'normalization': 0.5,
                 'infile': '../output/output_fluxmeter_cld_no_yoke_qqbar_1_120.root',
                 'outdir': 'cld_no_yoke_qqbar'
+                'x6m': True
             })
         elif sid == 5:
             self.list.append({
@@ -126,6 +130,7 @@ class Samples:
                 'normalization': 5.,
                 'infile': '../output/output_fluxmeter_cld_xangle_qqbar_1_12.root',
                 'outdir': 'cld_xangle_qqbar'
+                'x6m': False
             })
         else:
             print('Undefined sample ID')
@@ -188,6 +193,8 @@ def weight_factor(pdgid, ekin):
     elif abs(pdgid) == 1000010020:
         _wf = 2
     else:
+        print('INFO: Large weight factor')
+        print('      PDG ID:', pdgid)
         _wf = 20
 
     return _wf
@@ -762,6 +769,9 @@ def process_sample(det, ids, sample, args):
     infile.Close()
 
     # Normalization
+    x6m = 1.
+    if sample['x6m']:
+        x6m = det.x6m
     for hist in hist_arr_energy.values():
         hist.Scale(sample['normalization'])
 
@@ -769,22 +779,22 @@ def process_sample(det, ids, sample, args):
         hist.Scale(sample['normalization'])
 
     for hist in hist_arr_fluence_z_phi.values():
-        hist.Scale(sample['normalization'] * det.x6m/det.seg_area)
+        hist.Scale(sample['normalization'] * x6m/det.seg_area)
 
     for hist in hist_arr_fluence_x_y.values():
         hist.Scale(sample['normalization']/det.endcap_seg_area)
 
     for hist in hist_arr_energy_fluence_z_phi.values():
-        hist.Scale(sample['normalization'] * det.x6m/det.seg_area)
+        hist.Scale(sample['normalization'] * x6m/det.seg_area)
 
     for hist in hist_arr_energy_fluence_x_y.values():
         hist.Scale(sample['normalization']/det.endcap_seg_area)
 
     for hist in hist_arr_dose_z_phi.values():
-        hist.Scale(sample['normalization'] * det.x6m/det.seg_area)
+        hist.Scale(sample['normalization'] * x6m/det.seg_area)
 
     for hist in hist_arr_edose_z_phi.values():
-        hist.Scale(sample['normalization'] * det.x6m/det.seg_area)
+        hist.Scale(sample['normalization'] * x6m/det.seg_area)
 
     # Drawing
     ROOT.gStyle.SetOptStat(111111)
