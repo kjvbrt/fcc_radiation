@@ -64,7 +64,9 @@ class Plots:
             canvas.SetLogx(1)
         ROOT.gPad.SetRightMargin(0.05)
 
-        legend = ROOT.TLegend(0.7, 0.7, 0.95, 0.9)
+        legend = ROOT.TLegend(0.15, 0.7, 0.40, 0.9)
+        legend.SetFillStyle(0)
+        legend.SetBorderSize(0)
 
         for seltype, seltitle in zip(self.selection_types,
                                      self.sel_types_titles):
