@@ -43,10 +43,10 @@ class Plots:
                 hist_list.Add(hist)
                 hists[sample] = hist
 
-                hist_sum = hists[self.samples[0]].Clone(hist_stem)
-                hist_sum.Reset()
-                hist_sum.Merge(hist_list)
-                hists['sum'] = hist_sum
+            hist_sum = hists[self.samples[0]].Clone(hist_stem)
+            hist_sum.Reset()
+            hist_sum.Merge(hist_list)
+            hists['sum'] = hist_sum
 
             all_hists[seltype] = hists
 
@@ -128,6 +128,36 @@ class Plots:
                          '_' + seltype + '_sum.' + self.args.out_format)
 
 
+    def get_hist_array_avg(self, hist_arr, hist_stem, y_title):
+        '''
+        Do average of 2D histograms from the array
+        '''
+
+        all_hists = {}
+        for seltype in self.selection_types:
+            hist_coll = {}
+            hist_list = ROOT.TList()
+            for sample in self.samples:
+                hist2d = hist_arr[seltype][sample]
+
+                histname = hist_stem + '_' + seltype + '_' + sample
+                hist = hist2d.ProjectionX(histname)
+                hist.Scale(1./hist2d.GetNbinsY())
+                hist.GetYaxis().SetTitle(y_title)
+
+                hist_list.Add(hist)
+                hist_coll[sample] = hist
+
+            all_hists[seltype] = hist_coll
+
+            hist_sum = hist_coll[self.samples[0]].Clone(hist_stem + '_sum')
+            hist_sum.Reset()
+            hist_sum.Merge(hist_list)
+            hist_coll['sum'] = hist_sum
+
+        return all_hists
+
+
 def main():
     parser = argparse.ArgumentParser(description='Yay, let\'s plot flux!')
 
@@ -168,12 +198,34 @@ def main():
     plots.plot_hist_array(hist_arr_particle_energy,
                           'Kin. energy of particles',
                           logx=True)
+
     plots.plot_hist_array_2d(hist_arr_fluence_z_phi, 'Particle fluence')
     plots.plot_hist_array_2d(hist_arr_energy_fluence_z_phi,
                              'Energy fluence')
     plots.plot_hist_array_2d(hist_arr_dose_z_phi, 'Dose')
     plots.plot_hist_array_2d(hist_arr_edose_z_phi, 'Dose')
 
+    hist_arr_fluence_z_avg = plots.get_hist_array_avg(
+        hist_arr_fluence_z_phi,
+        'fluence_z_avg',
+        'Avg. particle fluence [cm^{-2}]')
+    hist_arr_energy_fluence_z_avg = plots.get_hist_array_avg(
+        hist_arr_energy_fluence_z_phi,
+        'energy_fluence_z_avg',
+        'Avg. energy fluence [GeV cm^{-2}]')
+    hist_arr_dose_z_avg = plots.get_hist_array_avg(
+        hist_arr_dose_z_phi,
+        'dose_z_avg',
+        'Avg. dose [Gy h]')
+    hist_arr_edose_z_avg = plots.get_hist_array_avg(
+        hist_arr_edose_z_phi,
+        'edose_z_avg',
+        'Avg. equivalent dose [Sv h]')
+
+    plots.plot_hist_array(hist_arr_fluence_z_avg, 'Avg. particle fluence')
+    plots.plot_hist_array(hist_arr_energy_fluence_z_avg, 'Avg. energy fluence')
+    plots.plot_hist_array(hist_arr_dose_z_avg, 'Avg. dose')
+    plots.plot_hist_array(hist_arr_edose_z_avg, 'Avg. equivalent dose')
 
 if __name__ == '__main__':
     main()

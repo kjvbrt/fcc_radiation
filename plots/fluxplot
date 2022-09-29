@@ -14,14 +14,15 @@ ROOT.gROOT.SetBatch(True)
 class Detector:
     def __init__(self, sample):
         cld_solenoid_outer_radius = 4272  # mm
-        cld_ref_radius = 6000  # mm
+        cld_yoke_barrel_outer_radius = 6000  # mm
+        cld_yoke_endcap_max_z = 5300  # mm
         # world_side = 6100  # mm
         world_side = 33000  # mm
 
         if sample['x6m']:
             self.radius = cld_solenoid_outer_radius + 5  # mm
         else:
-            self.radius = cld_ref_radius + 5  # mm
+            self.radius = cld_yoke_barrel_outer_radius + 5  # mm
         self.z = world_side - 5  # mm
 
         self.r = self.radius
@@ -38,7 +39,8 @@ class Detector:
         self.seg_area = self.ds * self.dz / 100  # cm**2
         self.endcap_seg_area = self.dr * self.dr / 100  # cm**2
         if sample['x6m']:
-            self.x6m = (cld_solenoid_outer_radius / cld_ref_radius)**2
+            self.x6m = (cld_solenoid_outer_radius /
+                        cld_yoke_barrel_outer_radius)**2
         else:
             self.x6m = 1.
 
@@ -937,6 +939,16 @@ def process_sample(det, ids, sample, args):
         canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
                      args.out_format)
 
+    ROOT.gPad.SetRightMargin(0.05)
+    for hist in hist_arr_fluence_z_phi.values():
+        hist_z = hist.ProjectionX()
+        hist_z.Scale(1./det.n_phi)
+        hist_z.GetYaxis().SetTitle('Avg. particle fluence [cm^{-2}]')
+        hist_z.Draw('')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '_avg.' +
+                     args.out_format)
+    ROOT.gPad.SetRightMargin(0.15)
+
     canvas.SetLogz(1)
     for hist in hist_arr_fluence_z_phi.values():
         hist.GetZaxis().SetTitleOffset(1.4)
@@ -964,6 +976,16 @@ def process_sample(det, ids, sample, args):
         hist.Draw('COLZ')
         canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
                      args.out_format)
+
+    ROOT.gPad.SetRightMargin(0.05)
+    for hist in hist_arr_energy_fluence_z_phi.values():
+        hist_z = hist.ProjectionX()
+        hist_z.Scale(1./det.n_phi)
+        hist_z.GetYaxis().SetTitle('Avg. energy fluence [GeV cm^{-2}]')
+        hist_z.Draw('')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '_avg.' +
+                     args.out_format)
+    ROOT.gPad.SetRightMargin(0.15)
 
     canvas.SetLogz(1)
     for hist in hist_arr_energy_fluence_z_phi.values():
@@ -994,6 +1016,16 @@ def process_sample(det, ids, sample, args):
         canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
                      args.out_format)
 
+    ROOT.gPad.SetRightMargin(0.05)
+    for hist in hist_arr_dose_z_phi.values():
+        hist_z = hist.ProjectionX()
+        hist_z.Scale(1./det.n_phi)
+        hist_z.GetYaxis().SetTitle('Avg. dose [Gy h]')
+        hist_z.Draw('')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '_avg.' +
+                     args.out_format)
+    ROOT.gPad.SetRightMargin(0.15)
+
     canvas.SetLogz(1)
     for hist in hist_arr_dose_z_phi.values():
         hist.GetZaxis().SetTitleOffset(1.4)
@@ -1017,6 +1049,16 @@ def process_sample(det, ids, sample, args):
         hist.Draw('COLZ')
         canvas.Print(sample['outdir'] + '/' + hist.GetName() + '.' +
                      args.out_format)
+
+    ROOT.gPad.SetRightMargin(0.05)
+    for hist in hist_arr_edose_z_phi.values():
+        hist_z = hist.ProjectionX()
+        hist_z.Scale(1./det.n_phi)
+        hist_z.GetYaxis().SetTitle('Avg. equivalent dose [Sv h]')
+        hist_z.Draw('')
+        canvas.Print(sample['outdir'] + '/' + hist.GetName() + '_avg.' +
+                     args.out_format)
+    ROOT.gPad.SetRightMargin(0.15)
 
     canvas.SetLogz(1)
     for hist in hist_arr_edose_z_phi.values():
