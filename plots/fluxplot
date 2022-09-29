@@ -24,6 +24,7 @@ class Detector:
         else:
             self.radius = cld_yoke_barrel_outer_radius + 5  # mm
         self.z = world_side - 5  # mm
+        self.pplane_z = cld_yoke_endcap_max_z
 
         self.r = self.radius
         self.n = 200
