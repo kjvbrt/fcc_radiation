@@ -6,6 +6,7 @@ import ROOT
 import os
 import numpy
 import array
+import textwrap
 
 ROOT.gROOT.SetBatch(True)
 
@@ -93,9 +94,25 @@ class IDs:
 
 
 class Samples:
-    def __init__(self, sid):
+    def __init__(self, sample_ids):
         self.list = []
-        if sid == 1:
+
+        if not sample_ids:
+            print('ERROR: At least one sample id is required!')
+            exit(1)
+
+        sample_id_max = 9
+        for sid in sample_ids:
+            if sid < 1:
+                print('ERROR: Sample ID outside allowed range!')
+                print('       Sample ID =', sid)
+                exit(1)
+            if sid > sample_id_max:
+                print('ERROR: Sample ID outside allowed range!')
+                print('       Sample ID =', sid)
+                exit(1)
+
+        if 1 in sample_ids:
             self.list.append({
                 'name': 'ggall',
                 'title': 'e^{+}e^{-} #rightarrow #gamma #gamma #rightarrow f #bar{f}',
@@ -104,7 +121,7 @@ class Samples:
                 'outdir': 'cld_no_yoke_no_ecal_xangle_ggall',
                 'x6m': True
             })
-        elif sid == 2:
+        if 2 in sample_ids:
             self.list.append({
                 'name': 'tautau',
                 'title': 'e^{+}e^{-} #rightarrow #tau^{+} #tau^{-}',
@@ -113,7 +130,7 @@ class Samples:
                 'outdir': 'cld_no_yoke_no_ecal_xangle_tautau',
                 'x6m': True
             })
-        elif sid == 3:
+        if 3 in sample_ids:
             self.list.append({
                 'name': 'qqbar',
                 'title': 'e^{+}e^{-} #rightarrow q #bar{q}',
@@ -122,35 +139,69 @@ class Samples:
                 'outdir': 'cld_no_yoke_no_ecal_xangle_qqbar',
                 'x6m': True
             })
-        elif sid == 4:
+        if 4 in sample_ids:
+            self.list.append({
+                'name': 'ggall',
+                'title': 'e^{+}e^{-} #rightarrow #gamma #gamma #rightarrow f #bar{f}',
+                'normalization': 0.125,
+                'infile': '../output/output_fluxmeter_cld_xangle_ggall_1_24.root',
+                'outdir': 'cld_xangle_ggall',
+                'x6m': False
+            })
+        if 5 in sample_ids:
+            self.list.append({
+                'name': 'tautau',
+                'title': 'e^{+}e^{-} #rightarrow #tau^{+} #tau^{-}',
+                'normalization': 0.125,
+                'infile': '../output/output_fluxmeter_cld_xangle_tautau_1_24.root',
+                'outdir': 'cld_xangle_tautau',
+                'x6m': False
+            })
+        if 6 in sample_ids:
+            self.list.append({
+                'name': 'qqbar',
+                'title': 'e^{+}e^{-} #rightarrow q #bar{q}',
+                'normalization': .5,
+                'infile': '../output/output_fluxmeter_cld_xangle_qqbar_1_120.root',
+                'outdir': 'cld_xangle_qqbar',
+                'x6m': False
+            })
+        if 7 in sample_ids:
+            self.list.append({
+                'name': 'ggall',
+                'title': 'e^{+}e^{-} #rightarrow #gamma #gamma #rightarrow f #bar{f}',
+                'normalization': 0.125,
+                'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_r6m_ggall_1_24.root',
+                'outdir': 'cld_no_yoke_no_ecal_xangle_r6m_ggall',
+                'x6m': False
+            })
+        if 8 in sample_ids:
+            self.list.append({
+                'name': 'tautau',
+                'title': 'e^{+}e^{-} #rightarrow #tau^{+} #tau^{-}',
+                'normalization': 0.125,
+                'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_r6m_tautau_1_24.root',
+                'outdir': 'cld_no_yoke_no_ecal_xangle_r6m_tautau',
+                'x6m': False
+            })
+        if 9 in sample_ids:
             self.list.append({
                 'name': 'qqbar',
                 'title': 'e^{+}e^{-} #rightarrow q #bar{q}',
                 'normalization': 0.5,
-                'infile': '../output/output_fluxmeter_cld_no_yoke_qqbar_1_120.root',
-                'outdir': 'cld_no_yoke_qqbar',
-                'x6m': True
-            })
-        elif sid == 5:
-            self.list.append({
-                'name': 'qqbar',
-                'title': 'e^{+}e^{-} #rightarrow q #bar{q}',
-                'normalization': 2.5,
-                'infile': '../output/output_fluxmeter_cld_xangle_qqbar_1_24.root',
-                'outdir': 'cld_xangle_qqbar',
+                'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_r6m_qqbar_1_120.root',
+                'outdir': 'cld_no_yoke_no_ecal_xangle_r6m_qqbar',
                 'x6m': False
             })
-        else:
-            print('Undefined sample ID')
-            return
 
         print('Samples:')
         for sample in self.list:
             print('  -', sample['name'], ':')
-            print('    - title:           ', sample['title'])
-            print('    - normalization:   ', sample['normalization'])
-            print('    - input file:      ', sample['infile'])
-            print('    - output directory:', sample['outdir'])
+            print('    - title:                 ', sample['title'])
+            print('    - normalization:         ', sample['normalization'])
+            print('    - input file:            ', sample['infile'])
+            print('    - output directory:      ', sample['outdir'])
+            print('    - rescaling to 6m radius:', sample['x6m'])
 
 
 def weight_factor(pdgid, ekin):
@@ -1039,23 +1090,36 @@ def process_sample(det, ids, sample, args):
 
 
 def main():
-    ids = IDs(True)
-
-    parser = argparse.ArgumentParser(description='Yay, let\'s plot flux!')
+    parser = argparse.ArgumentParser(
+        description='Yay, let\'s plot flux!',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=textwrap.dedent('''\
+            Sample IDs:
+                1 = ggall, no yoke, no ecal
+                2 = ditau, no yoke, no ecal
+                3 = qqbar, no yokem no ecal
+                4 = ggall, full CLD
+                5 = ditau, full CLD
+                6 = qqbar, full CLD
+                7 = ggall, no yoke, no ecal, fluxmeter at 6m
+                8 = ditau, no yoke, no ecal, fluxmeter at 6m
+                9 = qqbar, no yokem no ecal, fluxmeter at 6m
+            ''')
+    )
 
     parser.add_argument('-f', '--out-format',
                         type=str,
                         default='png',
                         help='output format of the plots')
-    parser.add_argument('-s', '--sid',
-                        type=int,
-                        default=3,
-                        help='sample ID (1 = ggall, 2 = ditau, 3 = qqbar, 4 = qqbar w/ ecal, 5 = qqbar full CLD)')
+    parser.add_argument('-s', '--sample-ids',
+                        type=int, nargs='+',
+                        help='sample ID')
 
     args = parser.parse_args()
     print(args)
 
-    samples = Samples(args.sid)
+    ids = IDs(True)
+    samples = Samples(args.sample_ids)
     for sample in samples.list:
         det = Detector(sample)
         process_sample(det, ids, sample, args)
