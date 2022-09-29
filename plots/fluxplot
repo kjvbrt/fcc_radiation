@@ -117,7 +117,7 @@ class Samples:
 
         if 1 in sample_ids:
             self.list.append({
-                'name': 'ggall',
+                'name': 'ggall1',
                 'title': 'e^{+}e^{-} #rightarrow #gamma #gamma #rightarrow f #bar{f}',
                 'normalization': 0.125,
                 'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_ggall_1_24.root',
@@ -126,7 +126,7 @@ class Samples:
             })
         if 2 in sample_ids:
             self.list.append({
-                'name': 'tautau',
+                'name': 'tautau2',
                 'title': 'e^{+}e^{-} #rightarrow #tau^{+} #tau^{-}',
                 'normalization': 0.125,
                 'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_tautau_1_24.root',
@@ -135,7 +135,7 @@ class Samples:
             })
         if 3 in sample_ids:
             self.list.append({
-                'name': 'qqbar',
+                'name': 'qqbar3',
                 'title': 'e^{+}e^{-} #rightarrow q #bar{q}',
                 'normalization': 0.5,
                 'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_qqbar_1_120.root',
@@ -144,7 +144,7 @@ class Samples:
             })
         if 4 in sample_ids:
             self.list.append({
-                'name': 'ggall',
+                'name': 'ggall4',
                 'title': 'e^{+}e^{-} #rightarrow #gamma #gamma #rightarrow f #bar{f}',
                 'normalization': 0.125,
                 'infile': '../output/output_fluxmeter_cld_xangle_ggall_1_24.root',
@@ -153,7 +153,7 @@ class Samples:
             })
         if 5 in sample_ids:
             self.list.append({
-                'name': 'tautau',
+                'name': 'tautau5',
                 'title': 'e^{+}e^{-} #rightarrow #tau^{+} #tau^{-}',
                 'normalization': 0.125,
                 'infile': '../output/output_fluxmeter_cld_xangle_tautau_1_24.root',
@@ -162,7 +162,7 @@ class Samples:
             })
         if 6 in sample_ids:
             self.list.append({
-                'name': 'qqbar',
+                'name': 'qqbar6',
                 'title': 'e^{+}e^{-} #rightarrow q #bar{q}',
                 'normalization': .5,
                 'infile': '../output/output_fluxmeter_cld_xangle_qqbar_1_120.root',
@@ -171,7 +171,7 @@ class Samples:
             })
         if 7 in sample_ids:
             self.list.append({
-                'name': 'ggall',
+                'name': 'ggall7',
                 'title': 'e^{+}e^{-} #rightarrow #gamma #gamma #rightarrow f #bar{f}',
                 'normalization': 0.125,
                 'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_r6m_ggall_1_24.root',
@@ -180,7 +180,7 @@ class Samples:
             })
         if 8 in sample_ids:
             self.list.append({
-                'name': 'tautau',
+                'name': 'tautau8',
                 'title': 'e^{+}e^{-} #rightarrow #tau^{+} #tau^{-}',
                 'normalization': 0.125,
                 'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_r6m_tautau_1_24.root',
@@ -189,7 +189,7 @@ class Samples:
             })
         if 9 in sample_ids:
             self.list.append({
-                'name': 'qqbar',
+                'name': 'qqbar9',
                 'title': 'e^{+}e^{-} #rightarrow q #bar{q}',
                 'normalization': 0.5,
                 'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_r6m_qqbar_1_120.root',

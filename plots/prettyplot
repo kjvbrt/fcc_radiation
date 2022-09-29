@@ -13,7 +13,10 @@ class Plots:
     '''
     def __init__(self, args):
         self.args = args
-        self.samples = ['ggall', 'tautau', 'qqbar']
+        self.samples = ['ggall4', 'tautau5', 'qqbar6',
+                        'ggall7', 'tautau8', 'qqbar9']
+        self.sums = [['ggall7', 'tautau8', 'qqbar9'],
+                     ['ggall4', 'tautau5', 'qqbar6']]
         self.selection_types = ['all', 'charged', 'neutral', 'no_neutrino',
                                 'neutral_no_neutrino',
                                 'neutrinos', 'neutrons', 'photons',
@@ -34,21 +37,24 @@ class Plots:
         ROOT.gROOT.ForceStyle()
         all_hists = {}
         for seltype in self.selection_types:
-            hists = {}
-            hist_list = ROOT.TList()
+            hist_coll = {}
             for sample in self.samples:
                 hist = infile.Get(hist_stem + '_' + seltype + '_' + sample)
                 hist.SetDirectory(0)
-                # hist.Sumw2()
-                hist_list.Add(hist)
-                hists[sample] = hist
+                hist_coll[sample] = hist
 
-            hist_sum = hists[self.samples[0]].Clone(hist_stem)
-            hist_sum.Reset()
-            hist_sum.Merge(hist_list)
-            hists['sum'] = hist_sum
+            for i, sum_list in enumerate(self.sums):
+                hist_list = ROOT.TList()
+                for sample in sum_list:
+                    hist_list.Add(hist_coll[sample])
+                hist_sum = hist_coll[sum_list[0]].Clone(hist_stem + '_' +
+                                                        seltype + '_sum' +
+                                                        str(i))
+                hist_sum.Reset()
+                hist_sum.Merge(hist_list)
+                hist_coll['sum' + str(i)] = hist_sum
 
-            all_hists[seltype] = hists
+            all_hists[seltype] = hist_coll
 
         return all_hists
 
@@ -72,41 +78,59 @@ class Plots:
                                      self.sel_types_titles):
             histcoll = hist_arr[seltype]
             legend.Clear()
-            if plot_title:
-                histcoll['sum'].SetTitle(plot_title + seltitle)
-            histcoll['sum'].SetLineColor(ROOT.kBlue-3)
-            histcoll['sum'].SetLineWidth(2)
-            legend.AddEntry(histcoll['sum'], 'Sum', 'L')
-            histcoll['sum'].Draw('')
+            hist_min, hist_max = get_min_max(
+                ['sum0', 'ggall7', 'tautau8', 'qqbar9', 'sum1'],
+                histcoll)
 
-            histcoll['ggall'].SetLineColor(ROOT.kRed+1)
-            histcoll['ggall'].SetLineWidth(2)
+            if plot_title:
+                histcoll['sum0'].SetTitle(plot_title + seltitle)
+            histcoll['sum0'].SetLineColor(ROOT.kBlack)
+            histcoll['sum0'].SetLineWidth(2)
+            histcoll['sum0'].SetMinimum(hist_min)
+            histcoll['sum0'].SetMaximum(hist_max)
+            legend.AddEntry(histcoll['sum0'],
+                            'Sum (CLD, no Yoke, no ECal)',
+                            'L')
+            histcoll['sum0'].Draw('')
+
+            histcoll['ggall7'].SetLineColor(ROOT.kRed + 1)
+            histcoll['ggall7'].SetLineWidth(2)
             legend.AddEntry(
-                histcoll['ggall'],
+                histcoll['ggall7'],
                 'e^{+}e^{-} #rightarrow #gamma #gamma #rightarrow f #bar{f}',
                 'L')
-            histcoll['ggall'].Draw('same')
+            histcoll['ggall7'].Draw('same')
 
-            histcoll['tautau'].SetLineColor(ROOT.kGreen + 3)
-            histcoll['tautau'].SetLineWidth(2)
+            histcoll['tautau8'].SetLineColor(ROOT.kGreen + 3)
+            histcoll['tautau8'].SetLineWidth(2)
             legend.AddEntry(
-                histcoll['tautau'],
+                histcoll['tautau8'],
                 'e^{+}e^{-} #rightarrow #tau^{+} #tau^{-}',
                 'L')
-            histcoll['tautau'].Draw('same')
+            histcoll['tautau8'].Draw('same')
 
-            histcoll['qqbar'].SetLineColor(ROOT.kMagenta - 3)
-            histcoll['qqbar'].SetLineWidth(2)
+            histcoll['qqbar9'].SetLineColor(ROOT.kMagenta - 3)
+            histcoll['qqbar9'].SetLineWidth(2)
             legend.AddEntry(
-                histcoll['qqbar'],
+                histcoll['qqbar9'],
                 'e^{+}e^{-} #rightarrow q #bar{q}',
                 'L')
-            histcoll['qqbar'].Draw('same')
+            histcoll['qqbar9'].Draw('same')
+
+            histcoll['sum1'].SetLineColor(ROOT.kBlue - 3)
+            histcoll['sum1'].SetLineWidth(2)
+            legend.AddEntry(
+                histcoll['sum1'],
+                'Sum (Full CLD)',
+                'L')
+            histcoll['sum1'].Draw('same')
 
             legend.Draw()
 
-            canvas.Print(self.args.out_dir + '/' + histcoll['sum'].GetName() +
-                         '_' + seltype + '.' + self.args.out_format)
+            hist_path = self.args.out_dir + '/' + histcoll['sum0'].GetName() + \
+                        '.' + self.args.out_format
+            hist_path = hist_path.replace('_sum0', '')
+            canvas.Print(hist_path)
 
 
     def plot_hist_array_2d(self, hist_arr, plot_title=None):
@@ -121,11 +145,13 @@ class Plots:
                                      self.sel_types_titles):
             histcoll = hist_arr[seltype]
             if plot_title:
-                histcoll['sum'].SetTitle(plot_title + seltitle)
-            histcoll['sum'].GetZaxis().SetTitleOffset(1.4)
-            histcoll['sum'].Draw('COLZ')
-            canvas.Print(self.args.out_dir + '/' + histcoll['sum'].GetName() +
-                         '_' + seltype + '_sum.' + self.args.out_format)
+                histcoll['sum0'].SetTitle(plot_title + seltitle)
+            histcoll['sum0'].GetZaxis().SetTitleOffset(1.4)
+            histcoll['sum0'].Draw('COLZ')
+            hist_path = self.args.out_dir + '/' + histcoll['sum0'].GetName() + \
+                        '.' + self.args.out_format
+            hist_path = hist_path.replace('_sum0', '')
+            canvas.Print(hist_path)
 
 
     def get_hist_array_avg(self, hist_arr, hist_stem, y_title):
@@ -136,7 +162,6 @@ class Plots:
         all_hists = {}
         for seltype in self.selection_types:
             hist_coll = {}
-            hist_list = ROOT.TList()
             for sample in self.samples:
                 hist2d = hist_arr[seltype][sample]
 
@@ -145,17 +170,51 @@ class Plots:
                 hist.Scale(1./hist2d.GetNbinsY())
                 hist.GetYaxis().SetTitle(y_title)
 
-                hist_list.Add(hist)
                 hist_coll[sample] = hist
+
+            for i, sum_list in enumerate(self.sums):
+                hist_list = ROOT.TList()
+                for sample in sum_list:
+                    hist_list.Add(hist_coll[sample])
+                hist_sum = hist_coll[sum_list[0]].Clone(hist_stem + '_' +
+                                                        seltype + '_sum' +
+                                                        str(i))
+                hist_sum.Reset()
+                hist_sum.Merge(hist_list)
+                hist_coll['sum' + str(i)] = hist_sum
 
             all_hists[seltype] = hist_coll
 
-            hist_sum = hist_coll[self.samples[0]].Clone(hist_stem + '_sum')
-            hist_sum.Reset()
-            hist_sum.Merge(hist_list)
-            hist_coll['sum'] = hist_sum
-
         return all_hists
+
+
+def get_min_max(sample_names, hist_coll, log=True):
+    hist_min = 1e60
+    hist_max = -1e60
+    for sample in sample_names:
+        hist = hist_coll[sample]
+        hmin = hist.GetBinContent(hist.GetMaximumBin())
+        hmax = hist.GetBinContent(hist.GetMaximumBin())
+        print('hmin:', hmin)
+        print('hmax:', hmax)
+        if hmax > hist_max:
+            hist_max = hmax
+        if hmin < hist_min:
+            hist_min = hmin
+
+    if log:
+        if hist_min <= 0:
+            hist_min = hist_max*1e-6
+        hist_min *= 0.3
+        hist_max *= 7
+    else:
+        hist_min *= 0.9
+        hist_max *= 1.1
+
+    print('hist_min:', hist_min)
+    print('hist_max:', hist_max)
+
+    return hist_min, hist_max
 
 
 def main():
