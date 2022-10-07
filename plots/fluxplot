@@ -379,7 +379,7 @@ def process_sample(det, ids, sample, args):
         200, 0, 0)
     hist_flux.SetDirectory(0)
 
-    energy_bins = numpy.logspace(-12., 3., num=100, endpoint=True)
+    energy_bins = numpy.logspace(-12., 2., num=50, endpoint=True)
     energy_bins = array.array('d', energy_bins)
 
     # Energy spectra of particles

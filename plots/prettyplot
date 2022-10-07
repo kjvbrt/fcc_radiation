@@ -59,18 +59,19 @@ class Plots:
         return all_hists
 
 
-    def plot_hist_array(self, hist_arr, plot_title=None, logx=False):
+    def plot_hist_array(self, hist_arr, plot_title=None, logx=False,
+                        hist_min=None, hist_max=None):
         '''
         Plot histograms in the array
         '''
 
-        canvas = ROOT.TCanvas('canvas', 'canvas', 500, 400)
+        canvas = ROOT.TCanvas('canvas', 'canvas', 400, 300)
         canvas.SetLogy(1)
         if logx:
             canvas.SetLogx(1)
         ROOT.gPad.SetRightMargin(0.05)
 
-        legend = ROOT.TLegend(0.15, 0.7, 0.40, 0.9)
+        legend = ROOT.TLegend(0.13, 0.6, 0.65, 0.9)
         legend.SetFillStyle(0)
         legend.SetBorderSize(0)
 
@@ -78,9 +79,14 @@ class Plots:
                                      self.sel_types_titles):
             histcoll = hist_arr[seltype]
             legend.Clear()
-            hist_min, hist_max = get_min_max(
-                ['sum0', 'ggall7', 'tautau8', 'qqbar9', 'sum1'],
-                histcoll)
+            if not hist_max:
+                hist_max = get_min_max(
+                    ['sum0', 'ggall7', 'tautau8', 'qqbar9', 'sum1'],
+                    histcoll)
+            if not hist_min:
+                hist_min = get_min_max(
+                    ['sum0', 'ggall7', 'tautau8', 'qqbar9', 'sum1'],
+                    histcoll)
 
             if plot_title:
                 histcoll['sum0'].SetTitle(plot_title + seltitle)
@@ -88,10 +94,11 @@ class Plots:
             histcoll['sum0'].SetLineWidth(2)
             histcoll['sum0'].SetMinimum(hist_min)
             histcoll['sum0'].SetMaximum(hist_max)
+            histcoll['sum0'].GetXaxis().SetTitleOffset(1.4)
             legend.AddEntry(histcoll['sum0'],
                             'Sum (CLD, no Yoke, no ECal)',
                             'L')
-            histcoll['sum0'].Draw('')
+            histcoll['sum0'].Draw('HIST')
 
             histcoll['ggall7'].SetLineColor(ROOT.kRed + 1)
             histcoll['ggall7'].SetLineWidth(2)
@@ -99,7 +106,7 @@ class Plots:
                 histcoll['ggall7'],
                 'e^{+}e^{-} #rightarrow #gamma #gamma #rightarrow f #bar{f}',
                 'L')
-            histcoll['ggall7'].Draw('same')
+            histcoll['ggall7'].Draw('HIST SAME')
 
             histcoll['tautau8'].SetLineColor(ROOT.kGreen + 3)
             histcoll['tautau8'].SetLineWidth(2)
@@ -107,7 +114,7 @@ class Plots:
                 histcoll['tautau8'],
                 'e^{+}e^{-} #rightarrow #tau^{+} #tau^{-}',
                 'L')
-            histcoll['tautau8'].Draw('same')
+            histcoll['tautau8'].Draw('HIST SAME')
 
             histcoll['qqbar9'].SetLineColor(ROOT.kMagenta - 3)
             histcoll['qqbar9'].SetLineWidth(2)
@@ -115,7 +122,7 @@ class Plots:
                 histcoll['qqbar9'],
                 'e^{+}e^{-} #rightarrow q #bar{q}',
                 'L')
-            histcoll['qqbar9'].Draw('same')
+            histcoll['qqbar9'].Draw('HIST SAME')
 
             histcoll['sum1'].SetLineColor(ROOT.kBlue - 3)
             histcoll['sum1'].SetLineWidth(2)
@@ -123,7 +130,7 @@ class Plots:
                 histcoll['sum1'],
                 'Sum (Full CLD)',
                 'L')
-            histcoll['sum1'].Draw('same')
+            histcoll['sum1'].Draw('HIST SAME')
 
             legend.Draw()
 
@@ -188,33 +195,40 @@ class Plots:
         return all_hists
 
 
-def get_min_max(sample_names, hist_coll, log=True):
-    hist_min = 1e60
+def get_hist_max(sample_names, hist_coll, log=True):
     hist_max = -1e60
     for sample in sample_names:
         hist = hist_coll[sample]
-        hmin = hist.GetBinContent(hist.GetMaximumBin())
         hmax = hist.GetBinContent(hist.GetMaximumBin())
-        print('hmin:', hmin)
-        print('hmax:', hmax)
         if hmax > hist_max:
             hist_max = hmax
+
+    if log:
+        hist_max *= 7
+    else:
+        hist_max *= 1.1
+
+    return hist_max
+
+
+def get_min_max(sample_names, hist_coll, log=True):
+    hist_min = 1e60
+    for sample in sample_names:
+        hist = hist_coll[sample]
+        hmin = hist.GetBinContent(hist.GetMaximumBin())
         if hmin < hist_min:
+            if log and hmin <= 0:
+                continue
             hist_min = hmin
 
     if log:
         if hist_min <= 0:
-            hist_min = hist_max*1e-6
+            hist_min = get_hist_max(sample_names, hist_coll, log)*1e-6
         hist_min *= 0.3
-        hist_max *= 7
     else:
         hist_min *= 0.9
-        hist_max *= 1.1
 
-    print('hist_min:', hist_min)
-    print('hist_max:', hist_max)
-
-    return hist_min, hist_max
+    return hist_min
 
 
 def main():
@@ -281,7 +295,8 @@ def main():
         'edose_z_avg',
         'Avg. equivalent dose [Sv h]')
 
-    plots.plot_hist_array(hist_arr_fluence_z_avg, 'Avg. particle fluence')
+    plots.plot_hist_array(hist_arr_fluence_z_avg, 'Avg. particle fluence',
+                          hist_min=1e-5, hist_max=6)
     plots.plot_hist_array(hist_arr_energy_fluence_z_avg, 'Avg. energy fluence')
     plots.plot_hist_array(hist_arr_dose_z_avg, 'Avg. dose')
     plots.plot_hist_array(hist_arr_edose_z_avg, 'Avg. equivalent dose')
