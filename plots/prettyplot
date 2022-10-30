@@ -80,11 +80,11 @@ class Plots:
             histcoll = hist_arr[seltype]
             legend.Clear()
             if not hist_max:
-                hist_max = get_min_max(
+                hist_max = get_hist_max(
                     ['sum0', 'ggall7', 'tautau8', 'qqbar9', 'sum1'],
                     histcoll)
             if not hist_min:
-                hist_min = get_min_max(
+                hist_min = get_hist_min(
                     ['sum0', 'ggall7', 'tautau8', 'qqbar9', 'sum1'],
                     histcoll)
 
@@ -140,7 +140,7 @@ class Plots:
             canvas.Print(hist_path)
 
 
-    def plot_hist_array_2d(self, hist_arr, plot_title=None):
+    def plot_hist_array_2d(self, hist_arr, plot_title=None, z_title=None):
         '''
         Plot 2D histograms in the array
         '''
@@ -151,14 +151,18 @@ class Plots:
         for seltype, seltitle in zip(self.selection_types,
                                      self.sel_types_titles):
             histcoll = hist_arr[seltype]
-            if plot_title:
-                histcoll['sum0'].SetTitle(plot_title + seltitle)
-            histcoll['sum0'].GetZaxis().SetTitleOffset(1.4)
-            histcoll['sum0'].Draw('COLZ')
-            hist_path = self.args.out_dir + '/' + histcoll['sum0'].GetName() + \
-                        '.' + self.args.out_format
-            hist_path = hist_path.replace('_sum0', '')
-            canvas.Print(hist_path)
+            for sumid in ['sum0', 'sum1']:
+                if plot_title:
+                    histcoll[sumid].SetTitle(plot_title + seltitle)
+                histcoll[sumid].GetZaxis().SetTitleOffset(1.4)
+                if z_title:
+                    histcoll[sumid].GetZaxis().SetTitle(z_title)
+                histcoll[sumid].Draw('COLZ')
+                hist_path = self.args.out_dir + '/' + \
+                            histcoll[sumid].GetName() + \
+                            '.' + self.args.out_format
+                # hist_path = hist_path.replace('_sum1', '')
+                canvas.Print(hist_path)
 
 
     def get_hist_array_avg(self, hist_arr, hist_stem, y_title):
@@ -211,7 +215,7 @@ def get_hist_max(sample_names, hist_coll, log=True):
     return hist_max
 
 
-def get_min_max(sample_names, hist_coll, log=True):
+def get_hist_min(sample_names, hist_coll, log=True):
     hist_min = 1e60
     for sample in sample_names:
         hist = hist_coll[sample]
@@ -276,7 +280,8 @@ def main():
     plots.plot_hist_array_2d(hist_arr_energy_fluence_z_phi,
                              'Energy fluence')
     plots.plot_hist_array_2d(hist_arr_dose_z_phi, 'Dose')
-    plots.plot_hist_array_2d(hist_arr_edose_z_phi, 'Dose')
+    plots.plot_hist_array_2d(hist_arr_edose_z_phi, 'Effective dose',
+                             'Effective dose [Sv h]')
 
     hist_arr_fluence_z_avg = plots.get_hist_array_avg(
         hist_arr_fluence_z_phi,
@@ -293,13 +298,16 @@ def main():
     hist_arr_edose_z_avg = plots.get_hist_array_avg(
         hist_arr_edose_z_phi,
         'edose_z_avg',
-        'Avg. equivalent dose [Sv h]')
+        'Avg. effective dose [Sv h]')
 
     plots.plot_hist_array(hist_arr_fluence_z_avg, 'Avg. particle fluence',
-                          hist_min=1e-5, hist_max=6)
-    plots.plot_hist_array(hist_arr_energy_fluence_z_avg, 'Avg. energy fluence')
-    plots.plot_hist_array(hist_arr_dose_z_avg, 'Avg. dose')
-    plots.plot_hist_array(hist_arr_edose_z_avg, 'Avg. equivalent dose')
+                          hist_min=5e-5, hist_max=1e2)
+    plots.plot_hist_array(hist_arr_energy_fluence_z_avg, 'Avg. energy fluence',
+                          hist_min=5e-6, hist_max=5e1)
+    plots.plot_hist_array(hist_arr_dose_z_avg, 'Avg. dose',
+                          hist_min=1e-10, hist_max=3e-4)
+    plots.plot_hist_array(hist_arr_edose_z_avg, 'Avg. effective dose',
+                          hist_min=5e-11, hist_max=1e-3)
 
 if __name__ == '__main__':
     main()
