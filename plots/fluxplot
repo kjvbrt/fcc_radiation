@@ -104,7 +104,7 @@ class Samples:
             print('ERROR: At least one sample id is required!')
             exit(1)
 
-        sample_id_max = 9
+        sample_id_max = 10
         for sid in sample_ids:
             if sid < 1:
                 print('ERROR: Sample ID outside allowed range!')
@@ -194,6 +194,15 @@ class Samples:
                 'normalization': 0.5,
                 'infile': '../output/output_fluxmeter_cld_no_yoke_no_ecal_xangle_r6m_qqbar_1_120.root',
                 'outdir': 'cld_no_yoke_no_ecal_xangle_r6m_qqbar',
+                'x6m': False
+            })
+        if 10 in sample_ids:
+            self.list.append({
+                'name': 'beamloss',
+                'title': 'e^{#pm} Beamloss',
+                'normalization': 262440000/162,
+                'infile': '../output/output_fluxmeter_beamloss.root',
+                'outdir': 'cld_beamloss',
                 'x6m': False
             })
 
@@ -1146,7 +1155,8 @@ def main():
                 6 = qqbar, full CLD
                 7 = ggall, no yoke, no ecal, fluxmeter at 6m
                 8 = ditau, no yoke, no ecal, fluxmeter at 6m
-                9 = qqbar, no yokem no ecal, fluxmeter at 6m
+                9 = qqbar, no yoke, no ecal, fluxmeter at 6m
+                10 = beamloss, no yoke, no ecal, fluxmeter at 6m
             ''')
     )
 
