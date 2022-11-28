@@ -12,3 +12,19 @@ beamloss input files. Other files are loaded from `/opt` directory.
 `plots` --- plots generated from `output` root files.
 
 `run` --- steering and batch running scripts.
+
+## Running in Batch mode
+
+### Beamloss
+
+```sh
+cd run
+batch < ./rrr_beamloss
+```
+
+### Processes
+
+```sh
+cd run
+for i in 1..120; do batch < ./rrr_ggall ${i}; done
+```

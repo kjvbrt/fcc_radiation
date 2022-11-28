@@ -100,7 +100,6 @@ out = PodioOutput("out")
 out.outputCommands = ["keep *"]
 import uuid
 out.filename = "output_fluxmeter_" + uuid.uuid4().hex[:12] + ".root"
-# out.filename = "output_fullCalo_SimAndDigi.root"
 ApplicationMgr().TopAlg += [out]
 
 #CPU information

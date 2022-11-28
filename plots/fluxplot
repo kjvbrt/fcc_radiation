@@ -198,11 +198,20 @@ class Samples:
             })
         if 10 in sample_ids:
             self.list.append({
-                'name': 'beamloss',
-                'title': 'e^{#pm} Beamloss',
-                'normalization': 262440000/162,
-                'infile': '../output/output_fluxmeter_beamloss.root',
-                'outdir': 'cld_beamloss',
+                'name': 'beamloss_ipa_z',
+                'title': 'Beamloss at IPA, Z',
+                'normalization': 262440000/999,
+                'infile': '../output/output_fluxmeter_beamloss_ipa_z.root',
+                'outdir': 'cld_beamloss_ipa_z',
+                'x6m': False
+            })
+        if 11 in sample_ids:
+            self.list.append({
+                'name': 'beamloss_ipa_top',
+                'title': 'Beamloss at IPA, top',
+                'normalization': 262440000/999,
+                'infile': '../output/output_fluxmeter_beamloss_ipa_top.root',
+                'outdir': 'cld_beamloss_ipa_top',
                 'x6m': False
             })
 
@@ -1147,16 +1156,17 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=textwrap.dedent('''\
             Sample IDs:
-                1 = ggall, no yoke, no ecal
-                2 = ditau, no yoke, no ecal
-                3 = qqbar, no yokem no ecal
-                4 = ggall, full CLD
-                5 = ditau, full CLD
-                6 = qqbar, full CLD
-                7 = ggall, no yoke, no ecal, fluxmeter at 6m
-                8 = ditau, no yoke, no ecal, fluxmeter at 6m
-                9 = qqbar, no yoke, no ecal, fluxmeter at 6m
-                10 = beamloss, no yoke, no ecal, fluxmeter at 6m
+                1 = ggall; CLD no yoke, no ecal; fluxmeter directly outside
+                2 = ditau; CLD no yoke, no ecal; fluxmeter directly outside
+                3 = qqbar; CLD no yoke, no ecal; fluxmeter directly outside
+                4 = ggall; full CLD; fluxmeter at 6m
+                5 = ditau; full CLD; fluxmeter at 6m
+                6 = qqbar; full CLD; fluxmeter at 6m
+                7 = ggall; CLD no yoke, no ecal; fluxmeter at 6m
+                8 = ditau; CLD no yoke, no ecal; fluxmeter at 6m
+                9 = qqbar; CLD no yoke, no ecal; fluxmeter at 6m
+                10 = beamloss at IPA, Z; CLD no yoke, no ecal; fluxmeter at 6m
+                11 = beamloss at IPA, top; CLD no yoke, no ecal; fluxmeter at 6m
             ''')
     )
 
