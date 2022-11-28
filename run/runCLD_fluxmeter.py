@@ -10,14 +10,14 @@ ApplicationMgr().OutputLevel = INFO
 ApplicationMgr().StopOnSignal = True
 ApplicationMgr().ExtSvc += ['RndmGenSvc']
 
-from Configurables import FCCDataSvc
 ## Data service
-podioevent = FCCDataSvc("EventDataSvc")
-# podioevent.input = "/opt/data/gen/pythia8/p8_ee_Zqq_ecm91_1000_1.root"
+from Configurables import FCCDataSvc
+eventservice = FCCDataSvc("EventDataSvc")
+# eventservice.input = "/opt/data/gen/pythia8/p8_ee_Zqq_ecm91_1000_1.root"
 from Configurables import PodioInput
 podioinput = PodioInput("PodioReader",
                         collections=["GenParticles"])
-ApplicationMgr().ExtSvc += [podioevent]
+ApplicationMgr().ExtSvc += [eventservice]
 ApplicationMgr().TopAlg += [podioinput]
 
 # Detector geometry
@@ -36,6 +36,14 @@ geoservice.OutputLevel = INFO
 ApplicationMgr().ExtSvc += [geoservice]
 
 
+# Magnetic field
+from Configurables import SimG4ConstantMagneticFieldTool
+field = SimG4ConstantMagneticFieldTool("SimG4ConstantMagneticFieldTool")
+field.FieldComponentZ = -2 * tesla
+field.FieldOn = True
+field.IntegratorStepper = "ClassicalRK4"
+
+
 # Geant4 service
 # Configures the Geant simulation: geometry, physics list and user actions
 from Configurables import SimG4Svc
@@ -44,6 +52,7 @@ geantservice = SimG4Svc("SimG4Svc")
 geantservice.detector = "SimG4DD4hepDetector"
 geantservice.physicslist = "SimG4FtfpBert"
 geantservice.actions = "SimG4FullSimActions"
+geantservice.magneticField = field
 # Fixed seed to have reproducible results, change it for each job if you split
 # one production into several jobs
 # Mind that if you leave Gaudi handle random seed and some job start within the
@@ -54,13 +63,6 @@ geantservice.randomNumbersFromGaudi = False
 geantservice.g4PreInitCommands += ["/run/setCut 0.1 mm"]
 ApplicationMgr().ExtSvc += [geantservice]
 
-
-# Magnetic field
-from Configurables import SimG4ConstantMagneticFieldTool
-field = SimG4ConstantMagneticFieldTool("SimG4ConstantMagneticFieldTool")
-field.FieldComponentZ = -2 * tesla
-field.FieldOn = True
-field.IntegratorStepper = "ClassicalRK4"
 
 # Geant4 algorithm
 # Translates EDM to G4Event, passes the event to G4, writes out outputs via
