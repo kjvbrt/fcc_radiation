@@ -42,12 +42,18 @@ ApplicationMgr().ExtSvc += [geoservice]
 
 
 # Magnetic field
-from Configurables import SimG4ConstantMagneticFieldTool
-field = SimG4ConstantMagneticFieldTool("SimG4ConstantMagneticFieldTool")
-field.FieldComponentZ = -2 * tesla
+# from Configurables import SimG4ConstantMagneticFieldTool
+# field = SimG4ConstantMagneticFieldTool("SimG4ConstantMagneticFieldTool")
+# field.FieldComponentZ = -2 * tesla
+# field.FieldOn = True
+# field.IntegratorStepper = "ClassicalRK4"
+
+from Configurables import SimG4MagneticFieldFromMapTool
+field = SimG4MagneticFieldFromMapTool("SimG4MagneticFieldFromMapTool")
+field.MapFile = "/home/jsmiesko/Work/FCC/fcc_radiation/input/fieldMapXYZ_120218.root"
 field.FieldOn = True
 field.IntegratorStepper = "ClassicalRK4"
-
+field.OutputLevel = DEBUG
 
 # Geant4 service
 # Configures the Geant simulation: geometry, physics list and user actions
