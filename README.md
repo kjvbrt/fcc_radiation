@@ -15,16 +15,10 @@ beamloss input files. Other files are loaded from `/opt` directory.
 
 ## Running in Batch mode
 
-### Beamloss
-
 ```sh
 cd run
-batch < ./rrr_beamloss
-```
-
-### Processes
-
-```sh
-cd run
-for i in 1..120; do batch < ./rrr_ggall ${i}; done
+# Processes
+for i in {1..120}; do echo "./rrr_beamlosses ${i}" | batch; done
+# Beamloss
+for i in {00..32}; do echo "./rrr_beamlosses ${i}" | batch; done
 ```

@@ -37,21 +37,21 @@ ApplicationMgr().ExtSvc += [geoservice]
 
 
 # Magnetic field
-from Configurables import SimG4ConstantMagneticFieldTool
-field = SimG4ConstantMagneticFieldTool("SimG4ConstantMagneticFieldTool")
-field.FieldComponentZ = -2 * tesla
+from Configurables import SimG4MagneticFieldFromMapTool
+field = SimG4MagneticFieldFromMapTool("SimG4MagneticFieldFromMapTool")
+field.MapFile = "/home/jsmiesko/FCC/fcc_radiation/input/fieldMapXYZ_120218.root"
 field.FieldOn = True
 field.IntegratorStepper = "ClassicalRK4"
-
+field.OutputLevel = DEBUG
 
 # Geant4 service
 # Configures the Geant simulation: geometry, physics list and user actions
 from Configurables import SimG4Svc
 # giving the names of tools will initialize the tools of that type
 geantservice = SimG4Svc("SimG4Svc")
-geantservice.detector = "SimG4DD4hepDetector"
-geantservice.physicslist = "SimG4FtfpBert"
-geantservice.actions = "SimG4FullSimActions"
+# geantservice.detector = "SimG4DD4hepDetector"
+# geantservice.physicslist = "SimG4FtfpBert"
+# geantservice.actions = "SimG4FullSimActions"
 geantservice.magneticField = field
 # Fixed seed to have reproducible results, change it for each job if you split
 # one production into several jobs

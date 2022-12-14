@@ -1,6 +1,6 @@
 import os
 from Gaudi.Configuration import INFO, DEBUG
-from GaudiKernel.PhysicalConstants import pi
+from GaudiKernel.PhysicalConstants import pi, mm
 from GaudiKernel.SystemOfUnits import GeV, tesla
 
 from Configurables import ApplicationMgr
@@ -46,14 +46,16 @@ ApplicationMgr().ExtSvc += [geoservice]
 # field = SimG4ConstantMagneticFieldTool("SimG4ConstantMagneticFieldTool")
 # field.FieldComponentZ = -2 * tesla
 # field.FieldOn = True
+# field.FieldRMax = 3719 * mm
+# field.FieldZMax = 3705 * mm
 # field.IntegratorStepper = "ClassicalRK4"
 
-from Configurables import SimG4MagneticFieldFromMapTool
-field = SimG4MagneticFieldFromMapTool("SimG4MagneticFieldFromMapTool")
-field.MapFile = "/home/jsmiesko/Work/FCC/fcc_radiation/input/fieldMapXYZ_120218.root"
-field.FieldOn = True
-field.IntegratorStepper = "ClassicalRK4"
-field.OutputLevel = DEBUG
+# from Configurables import SimG4MagneticFieldFromMapTool
+# field = SimG4MagneticFieldFromMapTool("SimG4MagneticFieldFromMapTool")
+# field.MapFile = "/home/jsmiesko/FCC/fcc_radiation/input/fieldMapXYZ_120218.root"
+# field.FieldOn = True
+# field.IntegratorStepper = "ClassicalRK4"
+# field.OutputLevel = DEBUG
 
 # Geant4 service
 # Configures the Geant simulation: geometry, physics list and user actions
@@ -63,12 +65,12 @@ geantservice = SimG4Svc("SimG4Svc")
 #geantservice.detector = "SimG4DD4hepDetector"
 #geantservice.physicslist = "SimG4FtfpBert"
 #geantservice.actions = "SimG4FullSimActions"
-geantservice.magneticField = field
+# geantservice.magneticField = field
 # Fixed seed to have reproducible results, change it for each job if you split
 # one production into several jobs
 # Mind that if you leave Gaudi handle random seed and some job start within the
 # same second (very likely) you will have duplicates
-# geantservice.randomNumbersFromGaudi = False
+geantservice.randomNumbersFromGaudi = False
 # geantservice.seedValue = 42424
 # Range cut
 # geantservice.g4PreInitCommands += ["/run/setCut 0.1 mm"]
@@ -104,7 +106,6 @@ out = PodioOutput("out")
 out.outputCommands = ["keep *"]
 import uuid
 out.filename = "output_fluxmeter_" + uuid.uuid4().hex[:12] + ".root"
-# out.filename = "output_fullCalo_SimAndDigi.root"
 ApplicationMgr().TopAlg += [out]
 
 #CPU information
